@@ -14,6 +14,13 @@
       "title": "Plateforme de gestion muséale",
       "visible": true,
       "content": "<p>testr</p>"
+    },
+    {
+      "id": "baaa8655-6949-4e4a-be92-68adef6a8a2e",
+      "slug": "radeau",
+      "title": "Radeau",
+      "visible": true,
+      "content": "<p><img src=\"images/msuufkldy6bo9h.png\" alt=\"\" onerror=\"handleImgError(this)\"><br></p>"
     }
   ]
 }
