@@ -60,6 +60,16 @@
     return d.innerHTML;
   }
 
+  // Retries images that briefly 404 right after GitHub Pages redeploys.
+  window.handleImgError = function (img) {
+    var tries = parseInt(img.getAttribute('data-retry') || '0', 10);
+    if (tries >= 15) return;
+    img.setAttribute('data-retry', String(tries + 1));
+    var base = img.getAttribute('data-base-src') || img.src;
+    img.setAttribute('data-base-src', base);
+    setTimeout(function () { img.src = base + '?r=' + Date.now(); }, 4000);
+  };
+
   function visiblePages() {
     return (siteData.pages || []).filter(function (p) { return p.visible !== false; });
   }

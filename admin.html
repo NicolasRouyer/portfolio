@@ -410,6 +410,17 @@
     if (el) el.textContent = msg || '';
   }
 
+  // GitHub Pages can take up to ~1 min to redeploy after a new file is pushed;
+  // retry the image load a few times instead of leaving it broken.
+  window.handleImgError = function (img) {
+    var tries = parseInt(img.getAttribute('data-retry') || '0', 10);
+    if (tries >= 15) return;
+    img.setAttribute('data-retry', String(tries + 1));
+    var base = img.getAttribute('data-base-src') || img.src;
+    img.setAttribute('data-base-src', base);
+    setTimeout(function () { img.src = base + '?r=' + Date.now(); }, 4000);
+  };
+
   function insertImageFileAtRange(file, range) {
     if (!/^image\//.test(file.type)) return;
     var el = getContentEl();
@@ -421,9 +432,10 @@
     uploadImageToGithub(file).then(function (path) {
       el.focus();
       if (range) { sel.removeAllRanges(); sel.addRange(range); }
-      insertHtmlAtCursor('<img src="' + escapeAttr(path) + '" alt="">');
+      insertHtmlAtCursor('<img src="' + escapeAttr(path) + '" alt="" onerror="handleImgError(this)">');
       window.onContentChanged(el);
-      showUploadStatus('');
+      showUploadStatus('Image envoyée — mise en ligne par GitHub Pages (jusqu\'à 1 min)…');
+      setTimeout(function () { showUploadStatus(''); }, 6000);
     }).catch(function (e) {
       console.error(e);
       showUploadStatus('');
