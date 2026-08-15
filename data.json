@@ -6,7 +6,7 @@
       "slug": "renovation-d-un-atelier",
       "title": "Rénovation d'un atelier",
       "visible": true,
-      "content": "<p><img src=\"images/msustze40rkpgd.gif\" alt=\"\"><p class=\"caption\">Ceci est la légende de la photo</p></p><p>dsgs</p><p><img src=\"images/msusuug43etqig.jpg\" alt=\"\"><br></p><p><br></p>"
+      "content": "<p><a href=\"https://test\">https://test</a></p><p><a href=\"#renovation-d-un-atelier\" class=\"internal-link\" data-page-id=\"eb34e578-5c53-4c25-9301-31a426b87669\">Rénovation d'un atelier</a><br><img src=\"images/msustze40rkpgd.gif\" alt=\"\"></p><p class=\"caption\">Ceci est la légende de la photo</p><p></p><p>dsgs</p><p><img src=\"images/msusuug43etqig.jpg\" alt=\"\"><br></p><p><br></p>"
     },
     {
       "id": "1332bdbc-b559-47b6-87a0-5683760f3100",
