@@ -2,6 +2,13 @@
   "siteTitle": "Mon site",
   "pages": [
     {
+      "id": "eb34e578-5c53-4c25-9301-31a426b87669",
+      "slug": "test-2",
+      "title": "Test 2",
+      "visible": true,
+      "content": "<p>dsgs</p>"
+    },
+    {
       "id": "1332bdbc-b559-47b6-87a0-5683760f3100",
       "slug": "test",
       "title": "test",
