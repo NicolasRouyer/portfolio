@@ -84,6 +84,9 @@
   figure.site-figure { margin: 22px 0; text-align: center; }
   figure.site-figure img { max-width: 100%; height: auto; display: block; margin: 0 auto; border: 1px solid #000; }
   figure.site-figure figcaption { font-size: 13px; font-style: italic; margin-top: 8px; }
+  .page-body img { max-width: 100%; height: auto; display: block; margin: 12px 0; border: 1px solid #000; }
+  .page-body.drag-over { outline: 2px dashed #000; outline-offset: -4px; }
+  .upload-status { font-size: 12px; font-style: italic; margin: 0 0 10px 0; }
 
   @media (max-width: 680px) {
     .app { flex-direction: column; }
@@ -368,38 +371,114 @@
     window.onContentChanged(el);
   };
 
+  // ---------- Image upload (stored as files in the repo, not inline base64) ----------
+  function contentsUrl(path) { return 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + path; }
+
+  function fileToBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(reader.result.split(',')[1]); };
+      reader.onerror = function () { reject(new Error('Lecture du fichier impossible.')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function extForFile(file) {
+    var m = /\.([a-zA-Z0-9]+)$/.exec(file.name || '');
+    if (m) return m[1].toLowerCase();
+    var byType = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/svg+xml': 'svg' };
+    return byType[file.type] || 'png';
+  }
+
+  function uploadImageToGithub(file) {
+    var name = Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '.' + extForFile(file);
+    var path = 'images/' + name;
+    return fileToBase64(file).then(function (base64) {
+      return fetch(contentsUrl(path), {
+        method: 'PUT',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ message: 'Ajout image — ' + name, content: base64, branch: config.branch })
+      });
+    }).then(function (res) {
+      if (!res.ok) return res.json().then(function (j) { throw new Error(j.message || ('Code ' + res.status)); });
+      return path;
+    });
+  }
+
+  function showUploadStatus(msg) {
+    var el = document.getElementById('upload-status');
+    if (el) el.textContent = msg || '';
+  }
+
+  function insertImageFileAtRange(file, range) {
+    if (!/^image\//.test(file.type)) return;
+    var el = getContentEl();
+    if (!el) return;
+    var sel = window.getSelection();
+    el.focus();
+    if (range) { sel.removeAllRanges(); sel.addRange(range); }
+    showUploadStatus('Téléversement de l\'image…');
+    uploadImageToGithub(file).then(function (path) {
+      el.focus();
+      if (range) { sel.removeAllRanges(); sel.addRange(range); }
+      insertHtmlAtCursor('<img src="' + escapeAttr(path) + '" alt="">');
+      window.onContentChanged(el);
+      showUploadStatus('');
+    }).catch(function (e) {
+      console.error(e);
+      showUploadStatus('');
+      alert('Échec de l\'envoi de l\'image : ' + e.message);
+    });
+  }
+
   window.insertImage = function () {
     var el = getContentEl();
     if (!el) return;
     var sel = window.getSelection();
     var range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-    var useUrl = confirm('OK = coller l\'adresse (URL) d\'une image.\nAnnuler = choisir un fichier sur votre appareil.');
-    if (useUrl) {
-      var url = prompt('URL de l\'image :');
-      if (!url) return;
-      finishInsertImage(url, el, range);
-    } else {
-      var input = document.createElement('input');
-      input.type = 'file'; input.accept = 'image/*';
-      input.onchange = function (e) {
-        var file = e.target.files[0];
-        if (!file) return;
-        var reader = new FileReader();
-        reader.onload = function (ev) { finishInsertImage(ev.target.result, el, range); };
-        reader.readAsDataURL(file);
-      };
-      input.click();
-    }
+    var input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = function (e) {
+      var file = e.target.files[0];
+      if (file) insertImageFileAtRange(file, range);
+    };
+    input.click();
   };
 
-  function finishInsertImage(src, el, range) {
-    var caption = prompt('Légende de l\'image (facultatif) :', '') || '';
-    el.focus();
-    var sel = window.getSelection();
-    if (range) { sel.removeAllRanges(); sel.addRange(range); }
-    insertHtmlAtCursor('<figure class="site-figure"><img src="' + src + '" alt=""><figcaption>' + escapeHtml(caption) + '</figcaption></figure><p><br></p>');
-    window.onContentChanged(el);
-  }
+  window.handleImageDragOver = function (e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('drag-over');
+  };
+
+  window.handleImageDragLeave = function (e) {
+    e.currentTarget.classList.remove('drag-over');
+  };
+
+  window.handleImageDrop = function (e) {
+    e.currentTarget.classList.remove('drag-over');
+    var files = e.dataTransfer && e.dataTransfer.files ? Array.prototype.slice.call(e.dataTransfer.files) : [];
+    var images = files.filter(function (f) { return /^image\//.test(f.type); });
+    if (!images.length) return;
+    e.preventDefault();
+    var range = null;
+    if (document.caretRangeFromPoint) range = document.caretRangeFromPoint(e.clientX, e.clientY);
+    images.forEach(function (file) { insertImageFileAtRange(file, range); });
+  };
+
+  window.handleImagePaste = function (e) {
+    var items = e.clipboardData ? e.clipboardData.items : null;
+    if (!items) return;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].kind === 'file' && /^image\//.test(items[i].type)) {
+        e.preventDefault();
+        var file = items[i].getAsFile();
+        var sel = window.getSelection();
+        var range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+        insertImageFileAtRange(file, range);
+        return;
+      }
+    }
+  };
 
   window.handleContentClick = function (e) {
     var link = e.target.closest ? e.target.closest('a.internal-link') : null;
@@ -459,7 +538,11 @@
       '<div class="content"><div class="content-inner">' +
         '<h1>' + escapeHtml(page.title) + '</h1>' +
         toolbar +
-        '<div id="page-body" class="page-body" contenteditable="true" oninput="onContentChanged(this)" onclick="handleContentClick(event)">' + page.content + '</div>' +
+        '<p class="upload-status" id="upload-status"></p>' +
+        '<div id="page-body" class="page-body" contenteditable="true" ' +
+          'oninput="onContentChanged(this)" onclick="handleContentClick(event)" ' +
+          'ondragover="handleImageDragOver(event)" ondragleave="handleImageDragLeave(event)" ' +
+          'ondrop="handleImageDrop(event)" onpaste="handleImagePaste(event)">' + page.content + '</div>' +
       '</div></div>';
   }
 
