@@ -25,7 +25,7 @@
   }
   .site-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .site-title {
-    font-family: Arial, Helvetica, sans-serif; font-weight: 700;
+    font-family: Arial, Helvetica, sans-serif; font-size: 1em; font-weight: 400;
     text-transform: uppercase; word-break: break-word;
   }
   .rename-btn, .small-btn {
@@ -40,7 +40,7 @@
     border: 1px solid #000; padding: 8px; cursor: pointer;
     font-family: 'Times New Roman', Times, serif;
   }
-  .nav-edit-item.current { font-weight: 700; }
+  .nav-edit-item.current { border-width: 2px; }
   .nav-edit-item input[type="text"] {
     width: 100%; font-family: inherit; font-size: 13px; border: 1px solid #000;
     padding: 3px 4px; background: #fff; color: #000; margin-bottom: 6px;
@@ -69,10 +69,10 @@
   .content { flex: 1; padding: 56px 48px; }
   .content-inner { max-width: 640px; }
   .content h1 {
-    font-family: Arial, Helvetica, sans-serif; font-weight: 700;
+    font-family: Arial, Helvetica, sans-serif; font-size: 1em; font-weight: 400;
     text-transform: uppercase; margin: 0 0 24px 0;
   }
-  .muted { font-style: italic; }
+  .muted { font-style: normal; }
 
   .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #000; }
   .toolbar button { border: 1px solid #000; background: #fff; color: #000; font-family: inherit; font-size: 12px; padding: 5px 9px; cursor: pointer; }
@@ -83,9 +83,9 @@
   }
   .page-body:focus { outline: 1px dotted #000; }
   .page-body p { margin: 0 0 18px 0; }
-  .page-body h2 { font-weight: 700; margin: 30px 0 14px 0; }
-  .page-body h3 { font-style: italic; font-weight: 400; margin: 26px 0 10px 0; }
-  .page-body blockquote { margin: 22px 0; padding: 0; font-style: italic; }
+  .page-body h2 { font-size: 1em; font-weight: 400; font-style: normal; margin: 50px 0 14px 0; }
+  .page-body h3 { font-size: 1em; font-weight: 400; font-style: normal; margin: 30px 0 10px 0; }
+  .page-body blockquote { font-size: 1em; font-weight: 400; font-style: normal; margin: 38px 0 22px 0; padding: 0; }
   .page-body ul, .page-body ol { margin: 0 0 18px 0; padding-left: 22px; }
   .page-body a { text-decoration: underline; }
   .page-body a.internal-link { font-weight: bold; }
