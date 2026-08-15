@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mon site</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+  body { font-family: Arial, Helvetica, sans-serif; line-height: 1.5; }
+  a { color: #000; }
+
+  .app { display: flex; min-height: 100vh; }
+
+  .sidebar {
+    width: 250px; flex: none; border-right: 1px solid #000;
+    padding: 24px 18px; display: flex; flex-direction: column; gap: 16px;
+  }
+  .site-title { font-size: 18px; font-weight: bold; word-break: break-word; }
+  .nav-list { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid #000; padding-top: 12px; }
+  .nav-link { display: block; padding: 6px 8px; text-decoration: none; }
+  .nav-link:hover { text-decoration: underline; }
+  .nav-link.current { background: #000; color: #fff; font-weight: bold; }
+
+  .content { flex: 1; padding: 40px 30px; }
+  .content-inner { max-width: 720px; }
+  .content h1 { font-size: 26px; margin: 0 0 20px 0; border-bottom: 1px solid #000; padding-bottom: 10px; }
+  .muted { font-style: italic; }
+
+  .page-body p { margin: 0 0 14px 0; }
+  .page-body h2 { font-size: 21px; margin: 26px 0 12px 0; }
+  .page-body h3 { font-size: 17px; margin: 22px 0 10px 0; }
+  .page-body blockquote { margin: 18px 0; padding-left: 14px; border-left: 3px solid #000; font-style: italic; }
+  .page-body ul, .page-body ol { margin: 0 0 14px 0; padding-left: 24px; }
+  .page-body a { text-decoration: underline; }
+
+  figure.site-figure { margin: 22px 0; text-align: center; }
+  figure.site-figure img { max-width: 100%; height: auto; display: block; margin: 0 auto; border: 1px solid #000; }
+  figure.site-figure figcaption { font-size: 13px; font-style: italic; margin-top: 8px; }
+
+  @media (max-width: 680px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #000; }
+    .content { padding: 24px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app"><div style="padding:40px;font-style:italic;">Chargement…</div></div>
+
+<script>
+(function () {
+  var siteData = null;
+
+  function escapeHtml(str) {
+    var d = document.createElement('div');
+    d.textContent = str == null ? '' : String(str);
+    return d.innerHTML;
+  }
+
+  function visiblePages() {
+    return (siteData.pages || []).filter(function (p) { return p.visible !== false; });
+  }
+
+  function currentSlug() {
+    var h = location.hash.replace(/^#/, '');
+    var vis = visiblePages();
+    if (h && vis.some(function (p) { return p.slug === h; })) return h;
+    return vis[0] && vis[0].slug;
+  }
+
+  function findPage(slug) {
+    var list = visiblePages();
+    for (var i = 0; i < list.length; i++) if (list[i].slug === slug) return list[i];
+    return list[0];
+  }
+
+  function render() {
+    document.title = siteData.siteTitle || 'Mon site';
+    var slug = currentSlug();
+    var page = findPage(slug);
+    if (!page) {
+      document.getElementById('app').innerHTML = '<div style="padding:40px;">Aucune page.</div>';
+      return;
+    }
+
+    var nav = visiblePages().map(function (p) {
+      var cls = p.slug === page.slug ? 'nav-link current' : 'nav-link';
+      return '<a class="' + cls + '" href="#' + p.slug + '">' + escapeHtml(p.title) + '</a>';
+    }).join('');
+
+    document.getElementById('app').innerHTML =
+      '<div class="app">' +
+        '<div class="sidebar">' +
+          '<div class="site-title">' + escapeHtml(siteData.siteTitle || 'Mon site') + '</div>' +
+          '<nav class="nav-list">' + nav + '</nav>' +
+        '</div>' +
+        '<div class="content"><div class="content-inner">' +
+          '<h1>' + escapeHtml(page.title) + '</h1>' +
+          '<div class="page-body">' + (page.content || '') + '</div>' +
+        '</div></div>' +
+      '</div>';
+  }
+
+  window.addEventListener('hashchange', render);
+
+  fetch('data.json', { cache: 'no-store' })
+    .then(function (res) {
+      if (!res.ok) throw new Error('data.json introuvable');
+      return res.json();
+    })
+    .then(function (data) {
+      siteData = data;
+      render();
+    })
+    .catch(function (e) {
+      document.getElementById('app').innerHTML =
+        '<div style="padding:40px;">Impossible de charger data.json. ' +
+        'Vérifiez qu\'il se trouve bien à côté de ce fichier index.html.<br><small>' +
+        escapeHtml(e.message) + '</small></div>';
+    });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backoffice</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+  body { font-family: Arial, Helvetica, sans-serif; line-height: 1.5; }
+  a { color: #000; }
+
+  .app { display: flex; min-height: 100vh; }
+  .app-loading .content, .app-loading .sidebar { visibility: hidden; }
+  .loading-screen { padding: 60px 40px; max-width: 480px; }
+  .loading-screen button {
+    border: 1px solid #000; background: #fff; color: #000;
+    padding: 10px 16px; font-family: inherit; font-size: 14px; cursor: pointer; margin-top: 14px;
+  }
+  .loading-screen button:hover { background: #000; color: #fff; }
+
+  .sidebar {
+    width: 260px; flex: none; border-right: 1px solid #000;
+    padding: 24px 18px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .site-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .site-title { font-size: 18px; font-weight: bold; word-break: break-word; }
+  .rename-btn, .small-btn {
+    border: 1px solid #000; background: #fff; color: #000;
+    font-size: 11px; padding: 2px 6px; cursor: pointer; font-family: inherit;
+  }
+  .rename-btn:hover, .small-btn:hover { background: #000; color: #fff; }
+
+  .nav-list { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #000; padding-top: 12px; }
+
+  .nav-edit-item { border: 1px solid #000; padding: 8px; cursor: pointer; }
+  .nav-edit-item.current { background: #000; color: #fff; }
+  .nav-edit-item.current input[type="text"] { background: #000; color: #fff; border-color: #fff; }
+  .nav-edit-item input[type="text"] {
+    width: 100%; font-family: inherit; font-size: 13px; border: 1px solid #000;
+    padding: 3px 4px; background: #fff; color: #000; margin-bottom: 6px;
+  }
+  .nav-edit-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; }
+  .nav-edit-controls button {
+    border: 1px solid #000; background: #fff; color: #000;
+    cursor: pointer; font-family: inherit; font-size: 12px; padding: 2px 6px;
+  }
+  .nav-edit-item.current .nav-edit-controls button { background: #fff; color: #000; }
+  .nav-edit-controls button:hover { background: #000; color: #fff; }
+  .visible-label { display: flex; align-items: center; gap: 4px; }
+
+  .add-page-btn, .publish-btn {
+    width: 100%; border: 1px solid #000; background: #fff; color: #000;
+    padding: 8px; font-family: inherit; font-size: 13px; cursor: pointer;
+  }
+  .add-page-btn:hover { background: #000; color: #fff; }
+  .publish-btn { font-weight: bold; }
+  .publish-btn:hover { background: #000; color: #fff; }
+  .publish-btn:disabled { opacity: 0.4; cursor: default; }
+  .publish-btn:disabled:hover { background: #fff; color: #000; }
+
+  .status { font-size: 11px; font-style: italic; min-height: 28px; }
+  .status.dirty { font-style: normal; font-weight: bold; }
+
+  .content { flex: 1; padding: 40px 30px; }
+  .content-inner { max-width: 720px; }
+  .content h1 { font-size: 26px; margin: 0 0 20px 0; border-bottom: 1px solid #000; padding-bottom: 10px; }
+  .muted { font-style: italic; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid #000; }
+  .toolbar button { border: 1px solid #000; background: #fff; color: #000; font-family: inherit; font-size: 12px; padding: 5px 9px; cursor: pointer; }
+  .toolbar button:hover { background: #000; color: #fff; }
+
+  .page-body { min-height: 300px; outline: none; }
+  .page-body:focus { outline: 1px dotted #000; }
+  .page-body p { margin: 0 0 14px 0; }
+  .page-body h2 { font-size: 21px; margin: 26px 0 12px 0; }
+  .page-body h3 { font-size: 17px; margin: 22px 0 10px 0; }
+  .page-body blockquote { margin: 18px 0; padding-left: 14px; border-left: 3px solid #000; font-style: italic; }
+  .page-body ul, .page-body ol { margin: 0 0 14px 0; padding-left: 24px; }
+  .page-body a { text-decoration: underline; }
+  .page-body a.internal-link { font-weight: bold; }
+
+  figure.site-figure { margin: 22px 0; text-align: center; }
+  figure.site-figure img { max-width: 100%; height: auto; display: block; margin: 0 auto; border: 1px solid #000; }
+  figure.site-figure figcaption { font-size: 13px; font-style: italic; margin-top: 8px; }
+
+  @media (max-width: 680px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #000; }
+    .content { padding: 24px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app" class="app app-loading">
+  <div class="loading-screen">Chargement…</div>
+</div>
+
+<script>
+(function () {
+  var CONFIG_KEY = 'site-admin-github-config';
+  var config = null;      // {owner, repo, branch, path, token}
+  var lastSha = null;
+  var siteTitle = 'Mon site';
+  var pages = [];          // [{id, slug, title, visible, content}]
+  var currentPageId = null;
+  var hasUnsavedChanges = false;
+
+  // ---------- Helpers ----------
+  function genId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'p' + Date.now().toString(16) + Math.random().toString(16).slice(2);
+  }
+  function slugify(str) {
+    return (str || 'page').toString().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'page';
+  }
+  function escapeHtml(str) {
+    var d = document.createElement('div');
+    d.textContent = str == null ? '' : String(str);
+    return d.innerHTML;
+  }
+  function escapeAttr(str) {
+    return escapeHtml(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function b64DecodeUtf8(b64) { return decodeURIComponent(escape(atob(b64.replace(/\n/g, '')))); }
+  function b64EncodeUtf8(str) { return btoa(unescape(encodeURIComponent(str))); }
+  function apiUrl() { return 'https://api.github.com/repos/' + config.owner + '/' + config.repo + '/contents/' + config.path; }
+  function authHeaders() { return { 'Authorization': 'Bearer ' + config.token, 'Accept': 'application/vnd.github+json' }; }
+
+  function setStatus(text, dirty) {
+    var el = document.getElementById('status');
+    if (el) { el.textContent = text; el.className = 'status' + (dirty ? ' dirty' : ''); }
+  }
+  function markDirty() {
+    hasUnsavedChanges = true;
+    setStatus('Modifications non publiées', true);
+    var btn = document.getElementById('publish-btn');
+    if (btn) btn.disabled = false;
+  }
+
+  window.addEventListener('beforeunload', function (e) {
+    if (hasUnsavedChanges) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // ---------- Config ----------
+  function loadConfig() {
+    try {
+      var raw = localStorage.getItem(CONFIG_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function saveConfig() {
+    try { localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); } catch (e) {}
+  }
+
+  window.configureGithub = function () {
+    var owner = prompt('Utilisateur ou organisation GitHub :', (config && config.owner) || '');
+    if (!owner) return;
+    var repo = prompt('Nom du dépôt :', (config && config.repo) || '');
+    if (!repo) return;
+    var branch = prompt('Branche :', (config && config.branch) || 'main');
+    if (!branch) return;
+    var path = prompt('Chemin du fichier JSON dans le dépôt :', (config && config.path) || 'data.json');
+    if (!path) return;
+    var token = prompt(
+      'Jeton d\'accès personnel GitHub (fine-grained, limité à ce dépôt, permission "Contents: Read and write") :',
+      ''
+    );
+    if (!token) return;
+    config = { owner: owner.trim(), repo: repo.trim(), branch: branch.trim(), path: path.trim(), token: token.trim() };
+    saveConfig();
+    boot();
+  };
+
+  // ---------- Load / Save via GitHub ----------
+  function loadSiteFromGithub() {
+    return fetch(apiUrl() + '?ref=' + encodeURIComponent(config.branch), { headers: authHeaders() })
+      .then(function (res) {
+        if (res.status === 404) { lastSha = null; siteTitle = 'Mon site'; pages = []; return; }
+        if (!res.ok) throw new Error('Code ' + res.status + ' — vérifiez la configuration et le jeton.');
+        return res.json().then(function (json) {
+          lastSha = json.sha;
+          var data = JSON.parse(b64DecodeUtf8(json.content));
+          siteTitle = data.siteTitle || 'Mon site';
+          pages = Array.isArray(data.pages) ? data.pages.map(function (p) {
+            return { id: p.id || genId(), slug: p.slug || slugify(p.title), title: p.title || 'Sans titre', visible: p.visible !== false, content: p.content || '' };
+          }) : [];
+        });
+      });
+  }
+
+  window.publishToGithub = function () {
+    var jsonStr = JSON.stringify({ siteTitle: siteTitle, pages: pages }, null, 2);
+    setStatus('Publication…', false);
+    fetch(apiUrl() + '?ref=' + encodeURIComponent(config.branch), { headers: authHeaders() })
+      .then(function (res) {
+        if (res.status === 404) return null;
+        if (!res.ok) return res.json().then(function (j) { throw new Error(j.message || ('Code ' + res.status)); });
+        return res.json().then(function (j) { return j.sha; });
+      })
+      .then(function (sha) {
+        lastSha = sha;
+        return fetch(apiUrl(), {
+          method: 'PUT',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+          body: JSON.stringify({
+            message: 'Mise à jour du site — ' + new Date().toISOString(),
+            content: b64EncodeUtf8(jsonStr),
+            branch: config.branch,
+            sha: lastSha || undefined
+          })
+        });
+      })
+      .then(function (res) {
+        if (!res.ok) return res.json().then(function (j) { throw new Error(j.message || ('Code ' + res.status)); });
+        return res.json();
+      })
+      .then(function (json) {
+        lastSha = json.content.sha;
+        hasUnsavedChanges = false;
+        setStatus('Publié ✓ — en ligne sur votre site', false);
+        var btn = document.getElementById('publish-btn');
+        if (btn) btn.disabled = true;
+      })
+      .catch(function (e) {
+        console.error(e);
+        alert('Échec de la publication : ' + e.message);
+        setStatus('Échec : ' + e.message, true);
+      });
+  };
+
+  window.downloadBackup = function () {
+    var jsonStr = JSON.stringify({ siteTitle: siteTitle, pages: pages }, null, 2);
+    var blob = new Blob([jsonStr], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'data.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // ---------- Page actions ----------
+  window.selectPage = function (id) { currentPageId = id; render(); };
+
+  window.addPage = function () {
+    var id = genId();
+    var usedSlugs = pages.map(function (p) { return p.slug; });
+    var base = slugify('Nouvelle page'), slug = base, n = 2;
+    while (usedSlugs.indexOf(slug) !== -1) { slug = base + '-' + n; n++; }
+    pages.push({ id: id, slug: slug, title: 'Nouvelle page', visible: true, content: '<p><br></p>' });
+    currentPageId = id;
+    markDirty();
+    render();
+    var input = document.querySelector('.nav-edit-item.current input[type="text"]');
+    if (input) { input.focus(); input.select(); }
+  };
+
+  window.deletePage = function (id) {
+    if (pages.length <= 1) { alert('Impossible de supprimer la dernière page.'); return; }
+    var page = pages.filter(function (p) { return p.id === id; })[0];
+    if (!page || !confirm('Supprimer la page "' + page.title + '" ?')) return;
+    pages = pages.filter(function (p) { return p.id !== id; });
+    if (currentPageId === id) currentPageId = pages[0].id;
+    markDirty();
+    render();
+  };
+
+  window.toggleVisibility = function (id) {
+    var page = pages.filter(function (p) { return p.id === id; })[0];
+    if (!page) return;
+    page.visible = !page.visible;
+    markDirty();
+    render();
+  };
+
+  window.movePage = function (id, dir) {
+    var idx = pages.findIndex(function (p) { return p.id === id; });
+    var newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= pages.length) return;
+    var tmp = pages[idx]; pages[idx] = pages[newIdx]; pages[newIdx] = tmp;
+    markDirty();
+    render();
+  };
+
+  window.updateTitle = function (id, value) {
+    var page = pages.filter(function (p) { return p.id === id; })[0];
+    if (!page) return;
+    page.title = value;
+    var usedSlugs = pages.filter(function (p) { return p.id !== id; }).map(function (p) { return p.slug; });
+    var base = slugify(value), slug = base, n = 2;
+    while (usedSlugs.indexOf(slug) !== -1) { slug = base + '-' + n; n++; }
+    page.slug = slug;
+    if (id === currentPageId) {
+      var h1 = document.querySelector('.content h1');
+      if (h1) h1.textContent = value;
+    }
+    markDirty();
+  };
+
+  window.renameSite = function () {
+    var val = prompt('Titre du site :', siteTitle);
+    if (val && val.trim()) { siteTitle = val.trim(); markDirty(); render(); }
+  };
+
+  // ---------- Content editing ----------
+  function getContentEl() { return document.getElementById('page-body'); }
+
+  window.onContentChanged = function (el) {
+    el = el || getContentEl();
+    if (!el || !currentPageId) return;
+    var page = pages.filter(function (p) { return p.id === currentPageId; })[0];
+    if (page) page.content = el.innerHTML;
+    markDirty();
+  };
+
+  function exec(cmd, val) {
+    var el = getContentEl();
+    if (!el) return;
+    el.focus();
+    document.execCommand(cmd, false, val || null);
+    window.onContentChanged(el);
+  }
+  window.cmdBold = function () { exec('bold'); };
+  window.cmdItalic = function () { exec('italic'); };
+  window.cmdParagraph = function () { exec('formatBlock', 'P'); };
+  window.cmdH2 = function () { exec('formatBlock', 'H2'); };
+  window.cmdH3 = function () { exec('formatBlock', 'H3'); };
+  window.cmdQuote = function () { exec('formatBlock', 'BLOCKQUOTE'); };
+  window.cmdList = function () { exec('insertUnorderedList'); };
+  window.cmdLinkExternal = function () {
+    var url = prompt('Adresse (URL) du lien :', 'https://');
+    if (!url) return;
+    exec('createLink', url);
+  };
+
+  function insertHtmlAtCursor(html) {
+    var sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    var range = sel.getRangeAt(0);
+    range.deleteContents();
+    var wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    var frag = document.createDocumentFragment(), node, last;
+    while ((node = wrap.firstChild)) { last = frag.appendChild(node); }
+    range.insertNode(frag);
+    if (last) { range.setStartAfter(last); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
+  }
+
+  window.insertInternalLink = function () {
+    var el = getContentEl();
+    if (!el) return;
+    var sel = window.getSelection();
+    var range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    var selectedText = sel.toString();
+    var list = pages.map(function (p) { return '- ' + p.title; }).join('\n');
+    var title = prompt('Lien vers quelle page ? Tapez le titre exact.\n\nPages disponibles :\n' + list);
+    if (!title) return;
+    var target = pages.filter(function (p) { return p.title.toLowerCase() === title.trim().toLowerCase(); })[0];
+    if (!target) { alert('Page introuvable.'); return; }
+    el.focus();
+    if (range) { sel.removeAllRanges(); sel.addRange(range); }
+    var label = selectedText || target.title;
+    insertHtmlAtCursor('<a href="#' + target.slug + '" class="internal-link" data-page-id="' + target.id + '">' + escapeHtml(label) + '</a>');
+    window.onContentChanged(el);
+  };
+
+  window.insertImage = function () {
+    var el = getContentEl();
+    if (!el) return;
+    var sel = window.getSelection();
+    var range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    var useUrl = confirm('OK = coller l\'adresse (URL) d\'une image.\nAnnuler = choisir un fichier sur votre appareil.');
+    if (useUrl) {
+      var url = prompt('URL de l\'image :');
+      if (!url) return;
+      finishInsertImage(url, el, range);
+    } else {
+      var input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*';
+      input.onchange = function (e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function (ev) { finishInsertImage(ev.target.result, el, range); };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    }
+  };
+
+  function finishInsertImage(src, el, range) {
+    var caption = prompt('Légende de l\'image (facultatif) :', '') || '';
+    el.focus();
+    var sel = window.getSelection();
+    if (range) { sel.removeAllRanges(); sel.addRange(range); }
+    insertHtmlAtCursor('<figure class="site-figure"><img src="' + src + '" alt=""><figcaption>' + escapeHtml(caption) + '</figcaption></figure><p><br></p>');
+    window.onContentChanged(el);
+  }
+
+  window.handleContentClick = function (e) {
+    var link = e.target.closest ? e.target.closest('a.internal-link') : null;
+    if (!link) return;
+    if (e.ctrlKey || e.metaKey) { e.preventDefault(); window.selectPage(link.getAttribute('data-page-id')); }
+    else { e.preventDefault(); }
+  };
+
+  // ---------- Render ----------
+  function renderSidebar() {
+    var items = pages.map(function (p) {
+      var isCurrent = p.id === currentPageId;
+      return '' +
+        '<div class="nav-edit-item ' + (isCurrent ? 'current' : '') + '" onclick="selectPage(\'' + p.id + '\')">' +
+          '<input type="text" value="' + escapeAttr(p.title) + '" oninput="updateTitle(\'' + p.id + '\', this.value)" onclick="event.stopPropagation()">' +
+          '<div class="nav-edit-controls" onclick="event.stopPropagation()">' +
+            '<label class="visible-label"><input type="checkbox" ' + (p.visible ? 'checked' : '') + ' onchange="toggleVisibility(\'' + p.id + '\')"> Visible</label>' +
+            '<button onclick="movePage(\'' + p.id + '\', -1)" title="Monter">↑</button>' +
+            '<button onclick="movePage(\'' + p.id + '\', 1)" title="Descendre">↓</button>' +
+            '<button onclick="deletePage(\'' + p.id + '\')" title="Supprimer">×</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+    if (!items) items = '<p class="muted" style="font-size:13px;">Aucune page.</p>';
+
+    return '' +
+      '<div class="sidebar">' +
+        '<div class="site-title-row"><div class="site-title">' + escapeHtml(siteTitle) + '</div><button class="rename-btn" onclick="renameSite()">renommer</button></div>' +
+        '<nav class="nav-list">' + items + '</nav>' +
+        '<button class="add-page-btn" onclick="addPage()">+ Nouvelle page</button>' +
+        '<button id="publish-btn" class="publish-btn" onclick="publishToGithub()" ' + (hasUnsavedChanges ? '' : 'disabled') + '>↑ Publier sur GitHub</button>' +
+        '<div class="status" id="status"' + (hasUnsavedChanges ? ' class="status dirty"' : '') + '>' + (hasUnsavedChanges ? 'Modifications non publiées' : 'À jour avec GitHub') + '</div>' +
+        '<button class="small-btn" onclick="downloadBackup()">Télécharger une copie</button>' +
+        '<button class="small-btn" onclick="configureGithub()">Configurer GitHub</button>' +
+      '</div>';
+  }
+
+  function renderContent() {
+    var page = pages.filter(function (p) { return p.id === currentPageId; })[0];
+    if (!page) return '<div class="content"><div class="content-inner"><p class="muted">Sélectionnez ou créez une page.</p></div></div>';
+
+    var toolbar = '' +
+      '<div class="toolbar">' +
+        '<button onclick="cmdBold()"><b>G</b></button>' +
+        '<button onclick="cmdItalic()"><i>I</i></button>' +
+        '<button onclick="cmdParagraph()">Texte</button>' +
+        '<button onclick="cmdH2()">Titre 2</button>' +
+        '<button onclick="cmdH3()">Titre 3</button>' +
+        '<button onclick="cmdQuote()">Citation</button>' +
+        '<button onclick="cmdList()">Liste</button>' +
+        '<button onclick="cmdLinkExternal()">Lien externe</button>' +
+        '<button onclick="insertInternalLink()">Lien interne</button>' +
+        '<button onclick="insertImage()">Image</button>' +
+      '</div>';
+
+    return '' +
+      '<div class="content"><div class="content-inner">' +
+        '<h1>' + escapeHtml(page.title) + '</h1>' +
+        toolbar +
+        '<div id="page-body" class="page-body" contenteditable="true" oninput="onContentChanged(this)" onclick="handleContentClick(event)">' + page.content + '</div>' +
+      '</div></div>';
+  }
+
+  function render() {
+    document.title = 'Backoffice — ' + siteTitle;
+    document.getElementById('app').innerHTML = renderSidebar() + renderContent();
+  }
+
+  function showGate(message) {
+    document.getElementById('app').innerHTML =
+      '<div class="loading-screen"><p>' + escapeHtml(message) + '</p><button onclick="configureGithub()">Configurer GitHub</button></div>';
+  }
+
+  function boot() {
+    config = loadConfig();
+    if (!config) { showGate('Backoffice non configuré. Renseignez votre dépôt GitHub pour commencer.'); return; }
+    document.getElementById('app').innerHTML = '<div class="loading-screen">Chargement du site depuis GitHub…</div>';
+    loadSiteFromGithub().then(function () {
+      currentPageId = pages[0] ? pages[0].id : null;
+      document.getElementById('app').classList.remove('app-loading');
+      render();
+    }).catch(function (e) {
+      console.error(e);
+      showGate('Erreur de connexion à GitHub : ' + e.message);
+    });
+  }
+
+  boot();
+})();
+</script>
+
+</body>
+</html>

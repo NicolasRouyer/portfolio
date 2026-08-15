@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mon site</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 1.5;
+  }
+  a { color: #000; }
+
+  .app { display: flex; min-height: 100vh; }
+  .app-loading .content, .app-loading .sidebar { visibility: hidden; }
+
+  .loading-screen {
+    padding: 60px 40px;
+    font-style: italic;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 250px;
+    flex: none;
+    border-right: 1px solid #000;
+    padding: 24px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .site-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .site-title { font-size: 18px; font-weight: bold; word-break: break-word; }
+  .rename-btn {
+    border: 1px solid #000; background: #fff; color: #000;
+    font-size: 11px; padding: 2px 6px; cursor: pointer; font-family: inherit;
+  }
+  .rename-btn:hover { background: #000; color: #fff; }
+
+  .nav-list { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid #000; padding-top: 12px; }
+
+  .nav-link {
+    display: block;
+    padding: 6px 8px;
+    text-decoration: none;
+    border: 1px solid #fff;
+  }
+  .nav-link:hover { text-decoration: underline; }
+  .nav-link.current { background: #000; color: #fff; font-weight: bold; }
+
+  .nav-edit-item {
+    border: 1px solid #000;
+    padding: 8px;
+    cursor: pointer;
+  }
+  .nav-edit-item.current { background: #000; color: #fff; }
+  .nav-edit-item.current input[type="text"] { background: #000; color: #fff; border-color: #fff; }
+  .nav-edit-item + .nav-edit-item { margin-top: 6px; }
+  .nav-edit-item input[type="text"] {
+    width: 100%;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid #000;
+    padding: 3px 4px;
+    background: #fff;
+    color: #000;
+    margin-bottom: 6px;
+  }
+  .nav-edit-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; }
+  .nav-edit-controls button {
+    border: 1px solid #000; background: #fff; color: #000;
+    cursor: pointer; font-family: inherit; font-size: 12px; padding: 2px 6px;
+  }
+  .nav-edit-item.current .nav-edit-controls button { background: #fff; color: #000; }
+  .nav-edit-controls button:hover { background: #000; color: #fff; }
+  .visible-label { display: flex; align-items: center; gap: 4px; }
+
+  .add-page-btn, .edit-toggle button {
+    width: 100%;
+    border: 1px solid #000;
+    background: #fff;
+    color: #000;
+    padding: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .add-page-btn:hover, .edit-toggle button:hover { background: #000; color: #fff; }
+
+  .status { font-size: 11px; font-style: italic; min-height: 14px; }
+
+  /* Content */
+  .content { flex: 1; padding: 40px 30px; }
+  .content-inner { max-width: 720px; }
+  .content h1 { font-size: 26px; margin: 0 0 20px 0; border-bottom: 1px solid #000; padding-bottom: 10px; }
+  .muted { font-style: italic; }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #000;
+  }
+  .toolbar button {
+    border: 1px solid #000;
+    background: #fff;
+    color: #000;
+    font-family: inherit;
+    font-size: 12px;
+    padding: 5px 9px;
+    cursor: pointer;
+  }
+  .toolbar button:hover { background: #000; color: #fff; }
+
+  .page-body { min-height: 300px; outline: none; }
+  .page-body:focus { outline: 1px dotted #000; }
+  .page-body p { margin: 0 0 14px 0; }
+  .page-body h2 { font-size: 21px; margin: 26px 0 12px 0; }
+  .page-body h3 { font-size: 17px; margin: 22px 0 10px 0; }
+  .page-body blockquote {
+    margin: 18px 0; padding-left: 14px; border-left: 3px solid #000; font-style: italic;
+  }
+  .page-body ul, .page-body ol { margin: 0 0 14px 0; padding-left: 24px; }
+  .page-body a { text-decoration: underline; }
+  .page-body a.internal-link { font-weight: bold; }
+
+  figure.site-figure { margin: 22px 0; text-align: center; }
+  figure.site-figure img { max-width: 100%; height: auto; display: block; margin: 0 auto; border: 1px solid #000; }
+  figure.site-figure figcaption { font-size: 13px; font-style: italic; margin-top: 8px; }
+
+  @media (max-width: 680px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #000; }
+    .content { padding: 24px 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app" class="app app-loading">
+  <div class="loading-screen">Chargement…</div>
+</div>
+
+<script>
+(function () {
+  // ---------- State ----------
+  var siteTitle = 'Mon site';
+  var pagesMeta = null;           // [{id, title, visible}]
+  var pageContentCache = {};      // id -> html string
+  var currentPageId = null;
+  var editMode = false;
+  var saveMetaTimer = null;
+  var saveContentTimers = {};
+
+  // ---------- Helpers ----------
+  function genId() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return 'p' + Date.now().toString(16) + Math.random().toString(16).slice(2);
+  }
+  function escapeHtml(str) {
+    var d = document.createElement('div');
+    d.textContent = str == null ? '' : String(str);
+    return d.innerHTML;
+  }
+  function escapeAttr(str) {
+    return escapeHtml(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function setStatus(text) {
+    var el = document.getElementById('status');
+    if (el) el.textContent = text;
+  }
+
+  // ---------- Storage ----------
+  function saveMeta() {
+    setStatus('Enregistrement…');
+    return window.storage.set('site-meta', JSON.stringify({ siteTitle: siteTitle, pages: pagesMeta }), true)
+      .then(function () { setStatus('Enregistré'); })
+      .catch(function (e) { console.error(e); setStatus('Erreur de sauvegarde'); });
+  }
+  function scheduleSaveMeta() {
+    setStatus('Enregistrement…');
+    clearTimeout(saveMetaTimer);
+    saveMetaTimer = setTimeout(saveMeta, 600);
+  }
+  function saveContent(id) {
+    setStatus('Enregistrement…');
+    return window.storage.set('page:' + id, JSON.stringify({ content: pageContentCache[id] || '' }), true)
+      .then(function () { setStatus('Enregistré'); })
+      .catch(function (e) { console.error(e); setStatus('Erreur de sauvegarde (image trop volumineuse ?)'); });
+  }
+  function scheduleSaveContent(id) {
+    setStatus('Enregistrement…');
+    clearTimeout(saveContentTimers[id]);
+    saveContentTimers[id] = setTimeout(function () { saveContent(id); }, 600);
+  }
+  function loadPageContent(id) {
+    return window.storage.get('page:' + id, true).then(function (res) {
+      var parsed = res && res.value ? JSON.parse(res.value) : null;
+      pageContentCache[id] = (parsed && parsed.content) || '<p><br></p>';
+    }).catch(function () {
+      pageContentCache[id] = '<p><br></p>';
+    });
+  }
+
+  function init() {
+    loadGithubConfig();
+    window.storage.get('site-meta', true).then(function (res) {
+      if (res && res.value) {
+        var parsed = JSON.parse(res.value);
+        siteTitle = parsed.siteTitle || 'Mon site';
+        if (Array.isArray(parsed.pages) && parsed.pages.length) pagesMeta = parsed.pages;
+      }
+    }).catch(function (e) {
+      console.error('Erreur de chargement', e);
+    }).then(function () {
+      var chain = Promise.resolve();
+      if (!pagesMeta) {
+        var id = genId();
+        pagesMeta = [{ id: id, title: 'Accueil', visible: true }];
+        pageContentCache[id] = '<p>Bienvenue sur mon site. Cliquez sur "Mode édition" dans le menu pour commencer à écrire : recettes, avancement de travaux, projets…</p>';
+        chain = saveMeta().then(function () { return saveContent(id); });
+      }
+      return chain;
+    }).then(function () {
+      var startPage = pagesMeta.filter(function (p) { return p.visible; })[0] || pagesMeta[0];
+      currentPageId = startPage ? startPage.id : null;
+      if (currentPageId && pageContentCache[currentPageId] === undefined) {
+        return loadPageContent(currentPageId);
+      }
+    }).then(function () {
+      document.getElementById('app').classList.remove('app-loading');
+      render();
+    });
+  }
+
+  // ---------- Page actions ----------
+  window.selectPage = function (id) {
+    currentPageId = id;
+    render();
+    if (pageContentCache[id] === undefined) {
+      loadPageContent(id).then(function () {
+        if (currentPageId === id) render();
+      });
+    }
+  };
+
+  window.toggleEdit = function () {
+    editMode = !editMode;
+    if (!editMode) {
+      var current = pagesMeta.filter(function (p) { return p.id === currentPageId; })[0];
+      if (current && !current.visible) {
+        var firstVisible = pagesMeta.filter(function (p) { return p.visible; })[0];
+        currentPageId = firstVisible ? firstVisible.id : currentPageId;
+      }
+    }
+    render();
+  };
+
+  window.addPage = function () {
+    var id = genId();
+    pagesMeta.push({ id: id, title: 'Nouvelle page', visible: true });
+    pageContentCache[id] = '<p><br></p>';
+    currentPageId = id;
+    scheduleSaveMeta();
+    saveContent(id);
+    render();
+    var input = document.querySelector('.nav-edit-item.current input[type="text"]');
+    if (input) { input.focus(); input.select(); }
+  };
+
+  window.deletePage = function (id) {
+    if (pagesMeta.length <= 1) { alert('Impossible de supprimer la dernière page.'); return; }
+    var page = pagesMeta.filter(function (p) { return p.id === id; })[0];
+    if (!page) return;
+    if (!confirm('Supprimer la page "' + page.title + '" ?')) return;
+    pagesMeta = pagesMeta.filter(function (p) { return p.id !== id; });
+    delete pageContentCache[id];
+    if (currentPageId === id) currentPageId = pagesMeta[0].id;
+    scheduleSaveMeta();
+    window.storage.delete('page:' + id, true).catch(function () {});
+    render();
+  };
+
+  window.toggleVisibility = function (id) {
+    var page = pagesMeta.filter(function (p) { return p.id === id; })[0];
+    if (!page) return;
+    page.visible = !page.visible;
+    scheduleSaveMeta();
+    render();
+  };
+
+  window.movePage = function (id, dir) {
+    var idx = pagesMeta.findIndex(function (p) { return p.id === id; });
+    var newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= pagesMeta.length) return;
+    var tmp = pagesMeta[idx];
+    pagesMeta[idx] = pagesMeta[newIdx];
+    pagesMeta[newIdx] = tmp;
+    scheduleSaveMeta();
+    render();
+  };
+
+  window.updateTitle = function (id, value) {
+    var page = pagesMeta.filter(function (p) { return p.id === id; })[0];
+    if (!page) return;
+    page.title = value;
+    if (id === currentPageId) {
+      var h1 = document.querySelector('.content h1');
+      if (h1) h1.textContent = value;
+    }
+    scheduleSaveMeta();
+  };
+
+  window.renameSite = function () {
+    var val = prompt('Titre du site :', siteTitle);
+    if (val && val.trim()) {
+      siteTitle = val.trim();
+      document.title = siteTitle;
+      scheduleSaveMeta();
+      render();
+    }
+  };
+
+  // ---------- Content editing ----------
+  function getContentEl() { return document.getElementById('page-body'); }
+
+  window.onContentChanged = function (el) {
+    el = el || getContentEl();
+    if (!el || !currentPageId) return;
+    pageContentCache[currentPageId] = el.innerHTML;
+    scheduleSaveContent(currentPageId);
+  };
+
+  function exec(cmd, val) {
+    var el = getContentEl();
+    if (!el) return;
+    el.focus();
+    document.execCommand(cmd, false, val || null);
+    window.onContentChanged(el);
+  }
+  window.cmdBold = function () { exec('bold'); };
+  window.cmdItalic = function () { exec('italic'); };
+  window.cmdParagraph = function () { exec('formatBlock', 'P'); };
+  window.cmdH2 = function () { exec('formatBlock', 'H2'); };
+  window.cmdH3 = function () { exec('formatBlock', 'H3'); };
+  window.cmdQuote = function () { exec('formatBlock', 'BLOCKQUOTE'); };
+  window.cmdList = function () { exec('insertUnorderedList'); };
+  window.cmdLinkExternal = function () {
+    var url = prompt('Adresse (URL) du lien :', 'https://');
+    if (!url) return;
+    exec('createLink', url);
+  };
+
+  function insertHtmlAtCursor(html) {
+    var sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    var range = sel.getRangeAt(0);
+    range.deleteContents();
+    var wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    var frag = document.createDocumentFragment(), node, last;
+    while ((node = wrap.firstChild)) { last = frag.appendChild(node); }
+    range.insertNode(frag);
+    if (last) {
+      range.setStartAfter(last);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }
+
+  window.insertInternalLink = function () {
+    var el = getContentEl();
+    if (!el) return;
+    var sel = window.getSelection();
+    var range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+    var selectedText = sel.toString();
+    var list = pagesMeta.map(function (p) { return '- ' + p.title; }).join('\n');
+    var title = prompt('Lien vers quelle page ? Tapez le titre exact.\n\nPages disponibles :\n' + list);
+    if (!title) return;
+    var target = pagesMeta.filter(function (p) { return p.title.toLowerCase() === title.trim().toLowerCase(); })[0];
+    if (!target) { alert('Page introuvable.'); return; }
+    el.focus();
+    if (range) { sel.removeAllRanges(); sel.addRange(range); }
+    var label = selectedText || target.title;
+    insertHtmlAtCursor('<a href="#" class="internal-link" data-page-id="' + target.id + '">' + escapeHtml(label) + '</a>');
+    window.onContentChanged(el);
+  };
+
+  window.insertImage = function () {
+    var el = getContentEl();
+    if (!el) return;
+    var sel = window.getSelection();
+    var range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+
+    var useUrl = confirm('OK = coller l\'adresse (URL) d\'une image.\nAnnuler = choisir un fichier sur votre appareil.');
+    if (useUrl) {
+      var url = prompt('URL de l\'image :');
+      if (!url) return;
+      finishInsertImage(url, el, range);
+    } else {
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = function (e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function (ev) { finishInsertImage(ev.target.result, el, range); };
+        reader.readAsDataURL(file);
+      };
+      input.click();
+    }
+  };
+
+  function finishInsertImage(src, el, range) {
+    var caption = prompt('Légende de l\'image (facultatif) :', '') || '';
+    el.focus();
+    var sel = window.getSelection();
+    if (range) { sel.removeAllRanges(); sel.addRange(range); }
+    var html = '<figure class="site-figure"><img src="' + src + '" alt=""><figcaption>' + escapeHtml(caption) + '</figcaption></figure><p><br></p>';
+    insertHtmlAtCursor(html);
+    window.onContentChanged(el);
+  }
+
+  window.handleContentClick = function (e) {
+    var link = e.target.closest ? e.target.closest('a.internal-link') : null;
+    if (!link) return;
+    if (!editMode || e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      window.selectPage(link.getAttribute('data-page-id'));
+    } else {
+      e.preventDefault();
+    }
+  };
+
+  // ---------- Export JSON (pour hébergement statique léger) ----------
+  function slugify(str) {
+    return (str || 'page').toString().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'page';
+  }
+
+  function downloadTextFile(filename, text, mime) {
+    var blob = new Blob([text], { type: mime || 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function buildExportData(visible) {
+    var used = {};
+    return {
+      siteTitle: siteTitle,
+      pages: visible.map(function (p) {
+        var base = slugify(p.title), slug = base, n = 2;
+        while (used[slug]) { slug = base + '-' + n; n++; }
+        used[slug] = true;
+        return { id: p.id, slug: slug, title: p.title, content: pageContentCache[p.id] || '' };
+      })
+    };
+  }
+
+  window.exportJson = function () {
+    var visible = pagesMeta.filter(function (p) { return p.visible; });
+    if (!visible.length) { alert('Aucune page visible à exporter. Rendez au moins une page visible.'); return; }
+
+    setStatus('Préparation de l\'export…');
+    var missing = visible.filter(function (p) { return pageContentCache[p.id] === undefined; });
+    Promise.all(missing.map(function (p) { return loadPageContent(p.id); })).then(function () {
+      downloadTextFile('data.json', JSON.stringify(buildExportData(visible), null, 2));
+      setStatus('data.json téléchargé');
+    });
+  };
+
+  // ---------- Publication directe sur GitHub ----------
+  var githubConfig = null; // {owner, repo, branch, path, token}
+
+  function loadGithubConfig() {
+    return window.storage.get('github-config', false).then(function (res) {
+      if (res && res.value) githubConfig = JSON.parse(res.value);
+    }).catch(function () { githubConfig = null; });
+  }
+
+  window.configureGithub = function () {
+    var owner = prompt('Utilisateur ou organisation GitHub :', (githubConfig && githubConfig.owner) || '');
+    if (!owner) return;
+    var repo = prompt('Nom du dépôt :', (githubConfig && githubConfig.repo) || '');
+    if (!repo) return;
+    var branch = prompt('Branche :', (githubConfig && githubConfig.branch) || 'main');
+    if (!branch) return;
+    var path = prompt('Chemin du fichier JSON dans le dépôt :', (githubConfig && githubConfig.path) || 'data.json');
+    if (!path) return;
+    var token = prompt(
+      'Jeton d\'accès personnel GitHub.\n' +
+      'Créez-en un "fine-grained" sur github.com > Settings > Developer settings > Personal access tokens,\n' +
+      'limité à CE dépôt uniquement, avec la permission "Contents: Read and write".',
+      ''
+    );
+    if (!token) return;
+    githubConfig = { owner: owner.trim(), repo: repo.trim(), branch: branch.trim(), path: path.trim(), token: token.trim() };
+    window.storage.set('github-config', JSON.stringify(githubConfig), false)
+      .then(function () { alert('Configuration enregistrée. Vous pouvez maintenant utiliser "Publier sur GitHub".'); })
+      .catch(function () { alert('Configuration retenue pour cette session, mais non sauvegardée.'); });
+  };
+
+  function b64EncodeUtf8(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+
+  window.publishToGithub = function () {
+    if (!githubConfig) { alert('Configurez d\'abord GitHub avec le bouton "Configurer GitHub".'); return; }
+    var visible = pagesMeta.filter(function (p) { return p.visible; });
+    if (!visible.length) { alert('Aucune page visible à publier.'); return; }
+
+    setStatus('Publication sur GitHub…');
+    var missing = visible.filter(function (p) { return pageContentCache[p.id] === undefined; });
+    Promise.all(missing.map(function (p) { return loadPageContent(p.id); })).then(function () {
+      var jsonStr = JSON.stringify(buildExportData(visible), null, 2);
+      var api = 'https://api.github.com/repos/' + githubConfig.owner + '/' + githubConfig.repo + '/contents/' + githubConfig.path;
+      var headers = { 'Authorization': 'Bearer ' + githubConfig.token, 'Accept': 'application/vnd.github+json' };
+
+      fetch(api + '?ref=' + encodeURIComponent(githubConfig.branch), { headers: headers })
+        .then(function (res) {
+          if (res.status === 200) return res.json().then(function (j) { return j.sha; });
+          if (res.status === 404) return null;
+          throw new Error('Erreur GitHub (' + res.status + ') en lisant le fichier existant.');
+        })
+        .then(function (sha) {
+          var body = { message: 'Mise à jour du site — ' + new Date().toISOString(), content: b64EncodeUtf8(jsonStr), branch: githubConfig.branch };
+          if (sha) body.sha = sha;
+          return fetch(api, {
+            method: 'PUT',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+            body: JSON.stringify(body)
+          });
+        })
+        .then(function (res) {
+          if (!res.ok) return res.json().then(function (j) { throw new Error(j.message || ('Erreur GitHub (' + res.status + ')')); });
+          setStatus('Publié sur GitHub ✓');
+        })
+        .catch(function (e) {
+          console.error(e);
+          setStatus('');
+          alert('Échec de la publication : ' + e.message);
+        });
+    });
+  };
+
+  // ---------- Render ----------
+  function renderSidebar() {
+    var list = editMode ? pagesMeta : pagesMeta.filter(function (p) { return p.visible; });
+    var items = '';
+    list.forEach(function (p) {
+      var isCurrent = p.id === currentPageId;
+      if (editMode) {
+        items += '' +
+          '<div class="nav-edit-item ' + (isCurrent ? 'current' : '') + '" onclick="selectPage(\'' + p.id + '\')">' +
+            '<input type="text" value="' + escapeAttr(p.title) + '" oninput="updateTitle(\'' + p.id + '\', this.value)" onclick="event.stopPropagation()">' +
+            '<div class="nav-edit-controls" onclick="event.stopPropagation()">' +
+              '<label class="visible-label"><input type="checkbox" ' + (p.visible ? 'checked' : '') + ' onchange="toggleVisibility(\'' + p.id + '\')"> Visible</label>' +
+              '<button onclick="movePage(\'' + p.id + '\', -1)" title="Monter">↑</button>' +
+              '<button onclick="movePage(\'' + p.id + '\', 1)" title="Descendre">↓</button>' +
+              '<button onclick="deletePage(\'' + p.id + '\')" title="Supprimer">×</button>' +
+            '</div>' +
+          '</div>';
+      } else {
+        items += '<a href="#" class="nav-link ' + (isCurrent ? 'current' : '') + '" onclick="event.preventDefault(); selectPage(\'' + p.id + '\')">' + escapeHtml(p.title) + '</a>';
+      }
+    });
+    if (!list.length) {
+      items = '<p class="muted" style="font-size:13px;">' + (editMode ? 'Aucune page.' : 'Aucune page visible.') + '</p>';
+    }
+
+    return '' +
+      '<div class="sidebar">' +
+        '<div class="site-title-row">' +
+          '<div class="site-title">' + escapeHtml(siteTitle) + '</div>' +
+          (editMode ? '<button class="rename-btn" onclick="renameSite()">renommer</button>' : '') +
+        '</div>' +
+        '<nav class="nav-list">' + items + '</nav>' +
+        (editMode ? '<button class="add-page-btn" onclick="addPage()">+ Nouvelle page</button>' : '') +
+        (editMode ? '<button class="add-page-btn" onclick="exportJson()">⇩ Exporter data.json</button>' : '') +
+        (editMode ? '<button class="add-page-btn" onclick="publishToGithub()">↑ Publier sur GitHub</button>' : '') +
+        (editMode ? '<button class="add-page-btn" onclick="configureGithub()">Configurer GitHub</button>' : '') +
+        '<div class="edit-toggle"><button onclick="toggleEdit()">' + (editMode ? 'Quitter le mode édition' : 'Mode édition') + '</button></div>' +
+        '<div class="status" id="status"></div>' +
+      '</div>';
+  }
+
+  function renderContent() {
+    var meta = pagesMeta.filter(function (p) { return p.id === currentPageId; })[0];
+    if (!meta) {
+      return '<div class="content"><div class="content-inner"><p class="muted">Aucune page sélectionnée.</p></div></div>';
+    }
+    var content = pageContentCache[currentPageId];
+    if (content === undefined) {
+      return '<div class="content"><div class="content-inner"><h1>' + escapeHtml(meta.title) + '</h1><p class="muted">Chargement…</p></div></div>';
+    }
+    var toolbar = !editMode ? '' : '' +
+      '<div class="toolbar">' +
+        '<button onclick="cmdBold()"><b>G</b></button>' +
+        '<button onclick="cmdItalic()"><i>I</i></button>' +
+        '<button onclick="cmdParagraph()">Texte</button>' +
+        '<button onclick="cmdH2()">Titre 2</button>' +
+        '<button onclick="cmdH3()">Titre 3</button>' +
+        '<button onclick="cmdQuote()">Citation</button>' +
+        '<button onclick="cmdList()">Liste</button>' +
+        '<button onclick="cmdLinkExternal()">Lien externe</button>' +
+        '<button onclick="insertInternalLink()">Lien interne</button>' +
+        '<button onclick="insertImage()">Image</button>' +
+      '</div>';
+
+    return '' +
+      '<div class="content"><div class="content-inner">' +
+        '<h1>' + escapeHtml(meta.title) + '</h1>' +
+        toolbar +
+        '<div id="page-body" class="page-body" contenteditable="' + editMode + '" oninput="onContentChanged(this)" onclick="handleContentClick(event)">' + content + '</div>' +
+      '</div></div>';
+  }
+
+  function render() {
+    document.title = siteTitle;
+    document.getElementById('app').innerHTML = renderSidebar() + renderContent();
+  }
+
+  init();
+})();
+</script>
+
+</body>
+</html>
