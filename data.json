@@ -3,15 +3,15 @@
   "pages": [
     {
       "id": "eb34e578-5c53-4c25-9301-31a426b87669",
-      "slug": "test-2",
-      "title": "Test 2",
+      "slug": "renovation-d-un-atelier",
+      "title": "Rénovation d'un atelier",
       "visible": true,
       "content": "<p><img src=\"images/msustze40rkpgd.gif\" alt=\"\"><p class=\"caption\">Ceci est la légende de la photo</p></p><p>dsgs</p><p><img src=\"images/msusuug43etqig.jpg\" alt=\"\"><br></p><p><br></p>"
     },
     {
       "id": "1332bdbc-b559-47b6-87a0-5683760f3100",
-      "slug": "test",
-      "title": "test",
+      "slug": "plateforme-de-gestion-museale",
+      "title": "Plateforme de gestion muséale",
       "visible": true,
       "content": "<p>testr</p>"
     }
