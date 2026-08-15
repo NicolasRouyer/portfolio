@@ -1,0 +1,12 @@
+{
+  "siteTitle": "Mon site",
+  "pages": [
+    {
+      "id": "1332bdbc-b559-47b6-87a0-5683760f3100",
+      "slug": "test",
+      "title": "test",
+      "visible": true,
+      "content": "<p>test</p>"
+    }
+  ]
+}
