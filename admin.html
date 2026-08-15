@@ -25,8 +25,8 @@
   }
   .site-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .site-title {
-    font-family: Helvetica, Arial, sans-serif; font-weight: 700; font-size: 12px;
-    letter-spacing: 0.06em; text-transform: uppercase; word-break: break-word;
+    font-family: Arial, Helvetica, sans-serif; font-weight: 700;
+    text-transform: uppercase; word-break: break-word;
   }
   .rename-btn, .small-btn {
     border: 1px solid #000; background: #fff; color: #000;
@@ -36,10 +36,13 @@
 
   .nav-list { display: flex; flex-direction: column; gap: 6px; }
 
-  .nav-edit-item { border: 1px solid #ddd; padding: 8px; cursor: pointer; }
-  .nav-edit-item.current { border-color: #000; }
+  .nav-edit-item {
+    border: 1px solid #000; padding: 8px; cursor: pointer;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .nav-edit-item.current { font-weight: 700; }
   .nav-edit-item input[type="text"] {
-    width: 100%; font-family: inherit; font-size: 13px; border: 1px solid #ccc;
+    width: 100%; font-family: inherit; font-size: 13px; border: 1px solid #000;
     padding: 3px 4px; background: #fff; color: #000; margin-bottom: 6px;
   }
   .nav-edit-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; }
@@ -66,25 +69,22 @@
   .content { flex: 1; padding: 56px 48px; }
   .content-inner { max-width: 640px; }
   .content h1 {
-    font-family: Helvetica, Arial, sans-serif; font-weight: 700; font-size: 11px;
-    letter-spacing: 0.08em; text-transform: uppercase; margin: 0 0 24px 0; color: #888;
+    font-family: Arial, Helvetica, sans-serif; font-weight: 700;
+    text-transform: uppercase; margin: 0 0 24px 0;
   }
   .muted { font-style: italic; }
 
-  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #ddd; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #000; }
   .toolbar button { border: 1px solid #000; background: #fff; color: #000; font-family: inherit; font-size: 12px; padding: 5px 9px; cursor: pointer; }
   .toolbar button:hover { background: #000; color: #fff; }
 
   .page-body {
-    min-height: 300px; outline: none; font-family: Georgia, 'Times New Roman', Times, serif; font-size: 17px;
+    min-height: 300px; outline: none; font-family: 'Times New Roman', Times, serif; font-size: 16px;
   }
-  .page-body:focus { outline: 1px dotted #ccc; }
+  .page-body:focus { outline: 1px dotted #000; }
   .page-body p { margin: 0 0 18px 0; }
-  .page-body h2 { font-family: Georgia, 'Times New Roman', Times, serif; font-weight: 400; font-size: 25px; margin: 36px 0 14px 0; }
-  .page-body h3 {
-    font-family: Helvetica, Arial, sans-serif; font-weight: 700; font-size: 11px;
-    letter-spacing: 0.08em; text-transform: uppercase; color: #888; margin: 30px 0 10px 0;
-  }
+  .page-body h2 { font-weight: 700; margin: 30px 0 14px 0; }
+  .page-body h3 { font-style: italic; font-weight: 400; margin: 26px 0 10px 0; }
   .page-body blockquote { margin: 22px 0; padding: 0; font-style: italic; }
   .page-body ul, .page-body ol { margin: 0 0 18px 0; padding-left: 22px; }
   .page-body a { text-decoration: underline; }
@@ -92,11 +92,11 @@
 
   figure.site-figure { margin: 30px 0; }
   figure.site-figure img { max-width: 100%; height: auto; display: block; margin: 0; }
-  figure.site-figure figcaption { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #888; margin-top: 8px; }
+  figure.site-figure figcaption { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin-top: 8px; }
   .page-body img { max-width: 100%; height: auto; display: block; margin: 30px 0 0 0; }
-  .page-body p.caption { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #888; margin: 8px 0 30px 0; }
+  .page-body p.caption { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin: 8px 0 30px 0; }
   .page-body.drag-over { outline: 2px dashed #000; outline-offset: -4px; }
-  .upload-status { font-size: 12px; font-style: italic; margin: 0 0 10px 0; }
+  .upload-status { font-size: 13px; font-style: italic; margin: 0 0 10px 0; }
 
   @media (max-width: 680px) {
     .app { flex-direction: column; }
