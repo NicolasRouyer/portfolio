@@ -10,8 +10,12 @@
   body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.3; }
   a { color: inherit; font-family: 'Times New Roman', Times, serif; font-style: italic; text-decoration: underline; }
 
-  .site-header { padding: 56px 48px 40px; }
-  .site-title { font-weight: 400; text-transform: uppercase; word-break: break-word; }
+  .site-header {
+    padding: 56px 48px 40px; text-align: center;
+    position: sticky; top: 0; z-index: 10; background: #fff;
+  }
+  .site-title { display: inline-block; font-weight: 400; text-transform: uppercase; word-break: break-word; }
+  .title-glyph { display: inline-block; }
 
   :root { --feed-pad: 48px; --feed-gap: 16px; }
 
@@ -147,31 +151,82 @@
   var textOriginals = new WeakMap();
   function rand(min, max) { return Math.random() * (max - min) + min; }
 
-  // caretRangeFromPoint is WebKit/Blink only; Firefox has the differently
-  // shaped caretPositionFromPoint. Without this fallback the whole effect
-  // silently no-ops on Firefox.
-  function caretPositionAt(x, y) {
-    if (document.caretRangeFromPoint) {
-      var r = document.caretRangeFromPoint(x, y);
-      return r ? { node: r.startContainer, offset: r.startOffset } : null;
-    }
-    if (document.caretPositionFromPoint) {
-      var p = document.caretPositionFromPoint(x, y);
-      return p ? { node: p.offsetNode, offset: p.offset } : null;
-    }
-    return null;
+  // Flattens a run of sibling nodes' text into document order, so a single
+  // integer "flat position" can address any character across mixed markup
+  // (plain text + <b>/<i> children) without caring which node it's in.
+  function textNodesOfNodes(nodes) {
+    var result = [];
+    nodes.forEach(function (node) {
+      if (node.nodeType === 3) { result.push(node); return; }
+      if (node.nodeType === 1) {
+        var walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null, false);
+        var n;
+        while ((n = walker.nextNode())) result.push(n);
+      }
+    });
+    return result;
   }
 
-  // Whole-block line splitting, preserving inner markup. Finds the DOM
-  // boundary (a collapsed Range) at the very start of each rendered visual
-  // line, then slices the block into one Range per line. Each Range can
-  // span multiple nodes/elements (e.g. half a <b>), and extractContents()
-  // on it correctly splits that markup at the boundary — this is what lets
-  // a <b> phrase that wraps mid-word still render correctly split across
-  // two line wrappers.
-  function getLineBoundaries(block) {
+  function flatPositionToBoundary(textNodes, pos) {
+    var remaining = pos;
+    for (var i = 0; i < textNodes.length; i++) {
+      var len = textNodes[i].nodeValue.length;
+      if (remaining <= len) return { node: textNodes[i], offset: remaining };
+      remaining -= len;
+    }
+    var last = textNodes[textNodes.length - 1];
+    return { node: last, offset: last ? last.nodeValue.length : 0 };
+  }
+
+  function childIndex(node) {
+    return Array.prototype.indexOf.call(node.parentNode.childNodes, node);
+  }
+
+  // A <br> is a hard, unconditional line break — it doesn't need (and can't
+  // use) geometry-based wrap detection. Splits a block's children into the
+  // runs between successive <br>s, each processed as an independent segment
+  // for wrap detection below; the <br>s themselves are left untouched.
+  function getSegments(block) {
+    var segments = [];
+    var current = [];
+    Array.prototype.forEach.call(block.childNodes, function (node) {
+      if (node.nodeType === 1 && node.tagName === 'BR') {
+        segments.push(current);
+        current = [];
+      } else {
+        current.push(node);
+      }
+    });
+    segments.push(current);
+    return segments;
+  }
+
+  // Line splitting for one <br>-delimited segment, preserving inner markup.
+  // Finds the DOM boundary (a collapsed Range) at the very start of each
+  // rendered visual line, then slices the segment into one Range per line.
+  // Each Range can span multiple nodes/elements (e.g. half a <b>), and
+  // extractContents() on it correctly splits that markup at the boundary —
+  // this is what lets a <b> phrase that wraps mid-word still render
+  // correctly split across two line wrappers.
+  //
+  // Deliberately avoids caretRangeFromPoint/caretPositionFromPoint: both are
+  // viewport-relative hit tests that return null for any point currently
+  // scrolled off-screen — on a feed longer than one screenful that silently
+  // failed for every card below the fold. getClientRects() has no such
+  // limitation (it reports accurate coordinates for laid-out elements
+  // regardless of scroll position), so boundaries are found instead by
+  // binary-searching the flat character position where a line's rect top
+  // first appears.
+  function getSegmentLineBoundaries(block, nodes) {
+    if (!nodes.length) return null;
+    var textNodes = textNodesOfNodes(nodes);
+    var totalLen = textNodes.reduce(function (sum, n) { return sum + n.nodeValue.length; }, 0);
+    if (totalLen === 0) return null;
+
+    var first = nodes[0], last = nodes[nodes.length - 1];
     var probe = document.createRange();
-    probe.selectNodeContents(block);
+    probe.setStartBefore(first);
+    probe.setEndAfter(last);
     var rawRects = Array.prototype.slice.call(probe.getClientRects());
     if (rawRects.length === 0) return null;
 
@@ -188,61 +243,81 @@
     var sortedRects = rawRects.slice().sort(function (a, b) { return a.top - b.top; });
     var lines = [];
     sortedRects.forEach(function (r) {
-      var last = lines[lines.length - 1];
-      if (last && Math.abs(r.top - last.top) < tolerance) {
-        last.left = Math.min(last.left, r.left);
-        return;
-      }
-      lines.push({ top: r.top, left: r.left, height: r.height });
+      var lastLine = lines[lines.length - 1];
+      if (lastLine && Math.abs(r.top - lastLine.top) < tolerance) return;
+      lines.push({ top: r.top });
     });
     if (lines.length <= 1) return null;
 
-    var boundaries = [{ node: block, offset: 0 }];
-    for (var i = 1; i < lines.length; i++) {
-      var line = lines[i];
-      var caret = caretPositionAt(Math.ceil(line.left) + 1, line.top + line.height / 2);
-      // At this point in layoutMasonry, cards only have a width set — not
-      // yet their final top/left — so several unrelated cards can briefly
-      // occupy the same screen coordinates. caretRangeFromPoint hit-tests
-      // the whole page, not just this block, so it can return a node that
-      // belongs to a DIFFERENT card entirely; accepting it would let
-      // extractContents() rip content out of that other card. Bail out
-      // (leave this block untouched) unless the hit actually landed inside
-      // the block we're splitting.
-      if (!caret || !block.contains(caret.node)) return null;
-      boundaries.push(caret);
+    // Top of the single character at flat position pos.
+    function topOfChar(pos) {
+      var start = flatPositionToBoundary(textNodes, pos);
+      var end = flatPositionToBoundary(textNodes, Math.min(pos + 1, totalLen));
+      var r = document.createRange();
+      r.setStart(start.node, start.offset);
+      r.setEnd(end.node, end.offset);
+      var rects = r.getClientRects();
+      return rects.length ? rects[0].top : null;
     }
-    boundaries.push({ node: block, offset: block.childNodes.length });
+
+    var boundaries = [{ node: block, offset: childIndex(first) }];
+    var searchFrom = 0;
+    for (var i = 1; i < lines.length; i++) {
+      var targetTop = lines[i].top;
+      // Smallest flat position whose character's top has reached this
+      // line — i.e. the first character that belongs to it.
+      var lo = searchFrom, hi = totalLen;
+      while (lo < hi) {
+        var mid = (lo + hi) >> 1;
+        var t = topOfChar(mid);
+        if (t === null || t < targetTop - tolerance) lo = mid + 1;
+        else hi = mid;
+      }
+      if (lo >= totalLen) return null; // couldn't resolve this boundary — bail
+      boundaries.push(flatPositionToBoundary(textNodes, lo));
+      searchFrom = lo;
+    }
+    boundaries.push({ node: block, offset: childIndex(last) + 1 });
     return boundaries;
   }
 
   function splitBlockIntoLines(block) {
-    var boundaries = getLineBoundaries(block);
-    if (!boundaries) return false;
+    var segments = getSegments(block);
+    var anySplit = false;
+    // Process segments from the last back to the first so an earlier
+    // segment's childIndex-based boundaries — computed relative to
+    // `block`'s own childNodes — stay valid: mutating a later segment
+    // never shifts the position of nodes before it.
+    for (var s = segments.length - 1; s >= 0; s--) {
+      var nodes = segments[s];
+      if (!nodes.length) continue;
+      var boundaries = getSegmentLineBoundaries(block, nodes);
+      if (!boundaries) continue;
+      anySplit = true;
 
-    var ranges = [];
-    for (var i = 0; i < boundaries.length - 1; i++) {
-      var r = document.createRange();
-      r.setStart(boundaries[i].node, boundaries[i].offset);
-      r.setEnd(boundaries[i + 1].node, boundaries[i + 1].offset);
-      ranges.push(r);
-    }
-
-    // Extract from the last line backwards so earlier ranges' node
-    // references are never invalidated by a later extraction.
-    for (var j = ranges.length - 1; j >= 0; j--) {
-      var frag = ranges[j].extractContents();
-      var span = document.createElement('span');
-      span.className = 'line-drift';
-      span.appendChild(frag);
-      ranges[j].insertNode(span);
+      var ranges = [];
+      for (var i = 0; i < boundaries.length - 1; i++) {
+        var r = document.createRange();
+        r.setStart(boundaries[i].node, boundaries[i].offset);
+        r.setEnd(boundaries[i + 1].node, boundaries[i + 1].offset);
+        ranges.push(r);
+      }
+      // Extract from the last line backwards so earlier ranges' node
+      // references are never invalidated by a later extraction.
+      for (var j = ranges.length - 1; j >= 0; j--) {
+        var frag = ranges[j].extractContents();
+        var span = document.createElement('span');
+        span.className = 'line-drift';
+        span.appendChild(frag);
+        ranges[j].insertNode(span);
+      }
     }
     // A line boundary landing exactly at a <b>/<i> edge can leave an empty
     // clone of it stranded between two line spans — inert, but tidy it up.
     Array.prototype.slice.call(block.querySelectorAll('b, i, strong, em')).forEach(function (el) {
       if (!el.textContent) el.remove();
     });
-    return true;
+    return anySplit;
   }
 
   function applyDrift(block, canvas, maxPercent) {
@@ -307,6 +382,24 @@
     processBoldWithinLines(container);
   }
 
+  // Site title: every letter gets its own small vertical + horizontal
+  // offset and tilt, and the whole title also tilts slightly as a block —
+  // re-rolled on every page load, same as the text accidents above.
+  function renderTitleAccident(el) {
+    var text = el.textContent;
+    el.textContent = '';
+    var rot = rand(-4, 4);
+    el.style.transform = 'rotate(' + rot.toFixed(2) + 'deg)';
+    for (var i = 0; i < text.length; i++) {
+      var g = document.createElement('span');
+      g.className = 'title-glyph';
+      g.textContent = text[i];
+      var tx = rand(-3, 3), ty = rand(-6, 6), gr = rand(-8, 8);
+      g.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) rotate(' + gr.toFixed(1) + 'deg)';
+      el.appendChild(g);
+    }
+  }
+
   // Blank, column-aligned filler blocks — re-rolled on every page load so
   // the layout never packs identically twice.
   function renderSpacer() {
@@ -350,10 +443,15 @@
       var w = isFull ? outerWidth : spans[i] * colWidth + (spans[i] - 1) * gap;
       card.style.width = w + 'px';
     });
-    // Re-derive the bold/italic accidents now that each card has its real
-    // width — a resize can change where a bold phrase wraps, so we always
+    // Re-derive the accidents now that each card has its real width — a
+    // resize can change where a bold word or a line breaks, so we always
     // reset to the pristine HTML first rather than re-processing already
-    // fragmented spans.
+    // fragmented spans. This must happen before heights are measured: a
+    // bold word's white-space:nowrap can push it entirely onto the next
+    // line, changing the paragraph's total line count (and so its height)
+    // versus how it would have wrapped as plain inline text — measuring
+    // first and decorating after would size the column packing for a
+    // shorter card than what actually renders, producing overlaps.
     feed.querySelectorAll('.text-content').forEach(function (el) {
       if (textOriginals.has(el)) el.innerHTML = textOriginals.get(el);
       processAccidents(el);
@@ -453,6 +551,9 @@
       (cards
         ? '<main class="feed">' + cards + '</main>'
         : '<p class="muted">Aucun contenu pour le moment.</p>');
+
+    var titleEl = document.querySelector('.site-title');
+    if (titleEl) renderTitleAccident(titleEl);
 
     var feed = document.querySelector('.feed');
     if (feed) {
