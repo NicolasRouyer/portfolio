@@ -17,6 +17,7 @@
       "src": null,
       "caption": "",
       "size": "large",
+      "archive": false,
       "createdAt": 1786865884045
     },
     {
@@ -29,6 +30,7 @@
       "src": "images/msvi8gz8ghtbpv.jpg",
       "caption": "",
       "size": "small",
+      "archive": true,
       "createdAt": 1786866601736
     },
     {
@@ -41,6 +43,7 @@
       "src": "images/msvi8v0vjvicfo.jpg",
       "caption": "",
       "size": "small",
+      "archive": false,
       "createdAt": 1786866616236
     },
     {
@@ -53,6 +56,7 @@
       "src": null,
       "caption": "",
       "size": "large",
+      "archive": false,
       "createdAt": 1786866688398
     },
     {
@@ -65,6 +69,7 @@
       "src": null,
       "caption": "",
       "size": "large",
+      "archive": false,
       "createdAt": 1786866713838
     },
     {
@@ -77,6 +82,7 @@
       "src": "images/msvjhy9jyrp79o.jpeg",
       "caption": "",
       "size": "small",
+      "archive": true,
       "createdAt": 1786868726637
     },
     {
@@ -89,6 +95,7 @@
       "src": "images/msvk40114owldo.jpg",
       "caption": "",
       "size": "large",
+      "archive": false,
       "createdAt": 1786869755499
     },
     {
@@ -101,6 +108,7 @@
       "src": "images/msvk4gus1so4ge.jpg",
       "caption": "",
       "size": "small",
+      "archive": true,
       "createdAt": 1786869772623
     },
     {
@@ -113,6 +121,7 @@
       "src": null,
       "caption": "",
       "size": "large",
+      "archive": false,
       "createdAt": 1786910649986
     },
     {
@@ -124,7 +133,8 @@
       "content": "<p><br></p>",
       "src": "images/msw90jplf8o0ao.jpg",
       "caption": "",
-      "size": "full",
+      "size": "small",
+      "archive": true,
       "createdAt": 1786911598112
     }
   ]
