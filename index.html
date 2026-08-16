@@ -357,12 +357,19 @@
       // two consecutive tilted lines' margins would collapse to whichever
       // is larger instead of adding up, which isn't room enough when both
       // lines are reaching toward it.
+      //
+      // The budget is fixed and small (not derived from a fairly large
+      // angle) so the reserved space never reads as a gap breaking the
+      // paragraph apart — the angle is what bends to fit that budget
+      // instead: wide lines only get a faint lean, short ones (a trailing
+      // word, a short last line) can visibly tilt more since the same
+      // small budget goes much further over less width.
       var tilt = 0;
       if (Math.random() < 0.2 && lineRect.width > 0) {
         var sign = prevTiltSign !== 0 ? prevTiltSign : (Math.random() < 0.5 ? -1 : 1);
-        tilt = sign * rand(0.7, 2.5);
-        var reach = (lineRect.width / 2) * Math.sin(Math.abs(tilt) * Math.PI / 180);
-        var buffer = Math.ceil(reach) + 1;
+        var buffer = 4;
+        var maxAngle = Math.min(3, Math.asin(Math.min(1, (2 * buffer) / lineRect.width)) * (180 / Math.PI));
+        tilt = sign * rand(maxAngle * 0.35, maxAngle);
         line.style.paddingTop = buffer + 'px';
         line.style.paddingBottom = buffer + 'px';
         var inner = document.createElement('span');
