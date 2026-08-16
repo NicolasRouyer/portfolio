@@ -13,13 +13,18 @@
   .site-header { padding: 56px 48px 40px; }
   .site-title { font-weight: 400; text-transform: uppercase; word-break: break-word; }
 
+  :root { --feed-pad: 48px; }
+
   .feed {
     display: grid; grid-template-columns: repeat(10, 1fr);
     gap: 24px 16px; align-items: start;
-    padding: 0 0 80px;
+    padding: 0 var(--feed-pad) 80px;
   }
   .card img { width: auto; max-width: 100%; height: auto; max-height: 65vh; display: block; }
   .card .caption { margin: 8px 0 0 0; }
+  .card.full { grid-column: 1 / -1; margin-left: calc(-1 * var(--feed-pad)); margin-right: calc(-1 * var(--feed-pad)); }
+  .card.full img { max-width: none; width: 100%; }
+  .card.spacer { visibility: hidden; }
 
   .text-content { max-width: 34em; }
   .text-content p { margin: 0 0 18px 0; }
@@ -32,13 +37,16 @@
   .muted { font-style: normal; padding: 0 48px; }
 
   @media (max-width: 900px) {
-    .feed { grid-template-columns: repeat(6, 1fr); gap: 20px 14px; padding: 0 0 56px; }
+    :root { --feed-pad: 28px; }
+    .feed { grid-template-columns: repeat(6, 1fr); gap: 20px 14px; padding: 0 var(--feed-pad) 56px; }
     .card img { max-height: 55vh; }
     .site-header { padding: 40px 28px 32px; }
   }
   @media (max-width: 560px) {
-    .feed { grid-template-columns: 1fr; gap: 36px; padding: 0 20px 40px; }
+    :root { --feed-pad: 20px; }
+    .feed { grid-template-columns: 1fr; gap: 36px; padding: 0 var(--feed-pad) 40px; }
     .card { grid-column: span 1 !important; margin-top: 0 !important; }
+    .card.spacer { display: none; }
     .card img { max-height: 60vh; }
     .site-header { padding: 32px 20px 24px; }
     .muted { padding: 0 20px; }
@@ -82,24 +90,33 @@
   // Grid is 10 columns wide (see .feed); narrower breakpoints reduce the
   // track count in CSS and browsers clamp an oversized span down to fit,
   // so these spans stay meaningful without any JS resize handling.
-  var IMAGE_SPANS = [2, 2, 3, 3, 4];
+  var IMAGE_SIZE_SPANS = { small: [2, 3], large: [5, 6, 7], full: null };
   var TEXT_SPANS = [3, 4, 4, 5];
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
   function renderCard(post, extraMarginTop) {
-    var span = pick(post.type === 'image' ? IMAGE_SPANS : TEXT_SPANS);
-    var jitter = Math.floor(Math.random() * 32);
-    var style = 'grid-column: span ' + span + '; margin-top: ' + (jitter + extraMarginTop) + 'px;';
+    var jitter = Math.floor(Math.random() * 32) + extraMarginTop;
 
     if (post.type === 'image') {
-      return '<article class="card" style="' + style + '">' +
+      var size = post.size === 'small' || post.size === 'full' ? post.size : 'large';
+      var isFull = size === 'full';
+      var style = isFull
+        ? 'margin-top: ' + jitter + 'px;'
+        : 'grid-column: span ' + pick(IMAGE_SIZE_SPANS[size]) + '; margin-top: ' + jitter + 'px;';
+      return '<article class="card' + (isFull ? ' full' : '') + '" style="' + style + '">' +
         '<img src="' + escapeAttr(post.src) + '" alt="" onerror="handleImgError(this)">' +
         (post.caption ? '<p class="caption">' + escapeHtml(post.caption) + '</p>' : '') +
         '</article>';
     }
-    return '<article class="card" style="' + style + '">' +
+    var textStyle = 'grid-column: span ' + pick(TEXT_SPANS) + '; margin-top: ' + jitter + 'px;';
+    return '<article class="card" style="' + textStyle + '">' +
       '<div class="text-content">' + (post.content || '') + '</div>' +
       '</article>';
+  }
+
+  function renderSpacer() {
+    var span = 1 + Math.floor(Math.random() * 3);
+    return '<div class="card spacer" style="grid-column: span ' + span + ';" aria-hidden="true"></div>';
   }
 
   function render() {
@@ -111,7 +128,10 @@
       // the whitespace has some rhythm instead of being purely random.
       var extra = (prevDate !== null && post.date !== prevDate) ? 60 + Math.floor(Math.random() * 60) : 0;
       prevDate = post.date;
-      return renderCard(post, extra);
+      // Occasionally lead with an empty column so rows don't always start
+      // flush with a post — a bit of extra life in the layout.
+      var spacer = Math.random() < 0.25 ? renderSpacer() : '';
+      return spacer + renderCard(post, extra);
     }).join('');
 
     document.getElementById('app').innerHTML =
