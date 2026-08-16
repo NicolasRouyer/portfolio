@@ -102,6 +102,18 @@
       "caption": "",
       "size": "small",
       "createdAt": 1786869772623
+    },
+    {
+      "id": "dfa7bcc7-6191-4ae7-b4a5-42ba8cd1faa4",
+      "type": "text",
+      "date": "2026-08-15",
+      "category": "",
+      "project": "",
+      "content": "<p>Écrivez un mot court ou une lettre de plusieurs pages et accentuez le style avec une police de caractère. Partagez des moments par courrier tout simplement.&nbsp;<a href=\"https://pli.services\">https://pli.services</a></p>",
+      "src": null,
+      "caption": "",
+      "size": "large",
+      "createdAt": 1786910649986
     }
   ]
 }
