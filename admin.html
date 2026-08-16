@@ -160,7 +160,7 @@
     return d.getFullYear() + '-' + m + '-' + day;
   }
   function blankDraft() {
-    return { type: 'text', date: todayStr(), category: '', project: '', content: '<p><br></p>', src: null, caption: '', size: 'large' };
+    return { type: 'text', date: todayStr(), category: '', project: '', content: '<p><br></p>', src: null, caption: '', size: 'large', archive: false };
   }
   function escapeHtml(str) {
     var d = document.createElement('div');
@@ -238,6 +238,7 @@
               date: p.date || todayStr(), category: p.category || '', project: p.project || '',
               content: p.content || '', src: p.src || null, caption: p.caption || '',
               size: p.size === 'small' || p.size === 'full' ? p.size : 'large',
+              archive: !!p.archive,
               createdAt: p.createdAt || 0
             };
           }) : [];
@@ -325,6 +326,11 @@
     render();
   };
 
+  window.setDraftArchive = function (archive) {
+    draft.archive = archive;
+    render();
+  };
+
   function getEditorEl() { return document.getElementById('editor'); }
 
   window.onDraftContentChanged = function (el) {
@@ -387,13 +393,13 @@
       if (post) {
         post.type = draft.type; post.date = draft.date; post.category = draft.category;
         post.project = draft.project; post.content = draft.content; post.src = draft.src;
-        post.caption = draft.caption; post.size = draft.size;
+        post.caption = draft.caption; post.size = draft.size; post.archive = !!draft.archive;
       }
     } else {
       posts.push({
         id: genId(), type: draft.type, date: draft.date, category: draft.category,
         project: draft.project, content: draft.content, src: draft.src, caption: draft.caption,
-        size: draft.size, createdAt: Date.now()
+        size: draft.size, archive: !!draft.archive, createdAt: Date.now()
       });
     }
 
@@ -409,7 +415,8 @@
     editingPostId = id;
     draft = {
       type: post.type, date: post.date, category: post.category, project: post.project,
-      content: post.content, src: post.src, caption: post.caption, size: post.size || 'large'
+      content: post.content, src: post.src, caption: post.caption, size: post.size || 'large',
+      archive: !!post.archive
     };
     render();
     var content = document.querySelector('.content');
@@ -663,6 +670,14 @@
             '<button class="' + (draft.size === 'small' ? 'active' : '') + '" onclick="setDraftSize(\'small\')">Petit</button>' +
             '<button class="' + (draft.size === 'large' ? 'active' : '') + '" onclick="setDraftSize(\'large\')">Grand</button>' +
             '<button class="' + (draft.size === 'full' ? 'active' : '') + '" onclick="setDraftSize(\'full\')">Plein écran</button>' +
+          '</div>' +
+        '</div>';
+      body += '' +
+        '<div class="field" style="margin-top:16px;">' +
+          '<label>Traitement</label>' +
+          '<div class="type-toggle">' +
+            '<button class="' + (!draft.archive ? 'active' : '') + '" onclick="setDraftArchive(false)">Normal</button>' +
+            '<button class="' + (draft.archive ? 'active' : '') + '" onclick="setDraftArchive(true)">Documentaire / archive</button>' +
           '</div>' +
         '</div>';
       body += '<div class="field"><label>Légende (facultatif)</label><input type="text" value="' + escapeAttr(draft.caption) + '" oninput="updateDraftField(\'caption\', this.value)"></div>';

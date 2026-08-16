@@ -28,11 +28,24 @@
   .card { position: absolute; }
   .card.text { padding: 20px; border-radius: 2px; }
   .card.spacer { visibility: hidden; }
-  .card img { width: 100%; height: auto; display: block; border-radius: 2px; }
+  .card .photo { position: relative; display: block; overflow: hidden; border-radius: 2px; }
+  .card .photo img { width: 100%; height: auto; display: block; }
   /* Plein écran stays edge-to-edge by design — only small/large cards get
      the photo shrunk within its reserved block. */
-  .card:not(.full) img { width: 50%; margin: 0 auto; }
+  .card:not(.full) .photo { width: 50%; margin: 0 auto; }
   .card .caption { margin: 8px 0 0 0; }
+
+  /* "Documentaire / archive": a heavy, deliberately washed-out treatment —
+     flattened contrast, no colour, film grain — reserved for photos tagged
+     as such in the admin. Contrast/brightness sit on the image itself; the
+     grain is a separate full-bleed overlay so its SVG noise composites over
+     the (already flattened) photo via mix-blend-mode instead of the two
+     effects fighting for the same filter pipeline. */
+  .card.archive .photo img { filter: grayscale(1) contrast(40%) brightness(121%); }
+  .card.archive .grain-overlay {
+    position: absolute; inset: 0; pointer-events: none;
+    mix-blend-mode: overlay; background: #808080; filter: url(#grainFilter);
+  }
 
   /* Left-aligned text has zero natural slack on its left — every line
      already starts flush at the block's edge, so there's nothing to give
@@ -71,6 +84,21 @@
 </style>
 </head>
 <body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="grainFilter">
+    <feTurbulence type="fractalNoise" baseFrequency="1.45" numOctaves="2" stitchTiles="stitch" result="noise"/>
+    <feColorMatrix in="noise" type="matrix"
+      values="0 0 0 0 0
+              0 0 0 0 0
+              0 0 0 0 0
+              0 0 0 1 0" result="alphaNoise"/>
+    <feComponentTransfer in="alphaNoise" result="grainAlpha">
+      <feFuncA type="linear" slope="0.9" intercept="0"/>
+    </feComponentTransfer>
+    <feComposite in="grainAlpha" in2="SourceGraphic" operator="over"/>
+  </filter>
+</svg>
 
 <div id="app"><div class="muted" style="padding-top:40px;">Chargement…</div></div>
 
@@ -132,8 +160,12 @@
     if (post.type === 'image') {
       var size = post.size === 'small' || post.size === 'full' ? post.size : 'large';
       var cls = size === 'full' ? 'card full' : size === 'large' ? 'card img-large' : 'card';
+      if (post.archive) cls += ' archive';
       return '<article class="' + cls + '">' +
-        '<img src="' + escapeAttr(post.src) + '" alt="" onerror="handleImgError(this)">' +
+        '<div class="photo">' +
+          '<img src="' + escapeAttr(post.src) + '" alt="" onerror="handleImgError(this)">' +
+          (post.archive ? '<span class="grain-overlay" aria-hidden="true"></span>' : '') +
+        '</div>' +
         (post.caption ? '<p class="caption">' + escapeHtml(post.caption) + '</p>' : '') +
         '</article>';
     }
