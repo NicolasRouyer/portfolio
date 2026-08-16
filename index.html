@@ -13,18 +13,22 @@
   .site-header { padding: 56px 48px 40px; }
   .site-title { font-weight: 400; text-transform: uppercase; word-break: break-word; }
 
-  :root { --feed-pad: 48px; }
+  :root { --feed-pad: 48px; --feed-gap: 16px; }
 
+  /* Masonry: auto-fill computes the column count live from the available
+     width (like Pinterest resizing), every track is the same fixed width,
+     and each card's row-span is measured in JS so heights pack tightly
+     without any manual breakpoints. */
   .feed {
-    display: grid; grid-template-columns: repeat(10, 1fr);
-    gap: 24px 16px; align-items: start;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-auto-rows: 1px; gap: var(--feed-gap); align-items: start;
     padding: 0 var(--feed-pad) 80px;
   }
-  .card img { width: auto; max-width: 100%; height: auto; max-height: 65vh; display: block; }
-  .card .caption { margin: 8px 0 0 0; }
+  .card.text { grid-column: span 2; }
+  .card.img-large { grid-column: span 2; }
   .card.full { grid-column: 1 / -1; margin-left: calc(-1 * var(--feed-pad)); margin-right: calc(-1 * var(--feed-pad)); }
-  .card.full img { max-width: none; width: 100%; max-height: none; }
-  .card.spacer { visibility: hidden; }
+  .card img { width: 100%; height: auto; display: block; border-radius: 2px; }
+  .card .caption { margin: 8px 0 0 0; }
 
   .text-content { max-width: 34em; }
   .text-content p { margin: 0 0 18px 0; }
@@ -38,16 +42,12 @@
 
   @media (max-width: 900px) {
     :root { --feed-pad: 28px; }
-    .feed { grid-template-columns: repeat(6, 1fr); gap: 20px 14px; padding: 0 var(--feed-pad) 56px; }
-    .card img { max-height: 55vh; }
+    .feed { padding: 0 var(--feed-pad) 56px; }
     .site-header { padding: 40px 28px 32px; }
   }
   @media (max-width: 560px) {
     :root { --feed-pad: 20px; }
-    .feed { grid-template-columns: 1fr; gap: 36px; padding: 0 var(--feed-pad) 40px; }
-    .card { grid-column: span 1 !important; margin-top: 0 !important; }
-    .card.spacer { display: none; }
-    .card img { max-height: 60vh; }
+    .feed { padding: 0 var(--feed-pad) 40px; }
     .site-header { padding: 32px 20px 24px; }
     .muted { padding: 0 20px; }
   }
@@ -87,65 +87,69 @@
     });
   }
 
-  // Grid is 10 columns wide (see .feed); narrower breakpoints reduce the
-  // track count in CSS and browsers clamp an oversized span down to fit,
-  // so these spans stay meaningful without any JS resize handling.
-  var IMAGE_SIZE_SPANS = { small: [2, 3], large: [5, 6, 7], full: null };
-  var TEXT_SPANS = [3, 4, 4, 5];
-  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-  function renderCard(post, extraMarginTop) {
-    var jitter = Math.floor(Math.random() * 32) + extraMarginTop;
-
+  function renderCard(post) {
     if (post.type === 'image') {
       var size = post.size === 'small' || post.size === 'full' ? post.size : 'large';
-      var isFull = size === 'full';
-      var style = isFull
-        ? 'margin-top: ' + jitter + 'px;'
-        : 'grid-column: span ' + pick(IMAGE_SIZE_SPANS[size]) + '; margin-top: ' + jitter + 'px;';
-      return '<article class="card' + (isFull ? ' full' : '') + '" style="' + style + '">' +
+      var cls = size === 'full' ? 'card full' : size === 'large' ? 'card img-large' : 'card';
+      return '<article class="' + cls + '">' +
         '<img src="' + escapeAttr(post.src) + '" alt="" onerror="handleImgError(this)">' +
         (post.caption ? '<p class="caption">' + escapeHtml(post.caption) + '</p>' : '') +
         '</article>';
     }
-    var textStyle = 'grid-column: span ' + pick(TEXT_SPANS) + '; margin-top: ' + jitter + 'px;';
-    return '<article class="card" style="' + textStyle + '">' +
+    return '<article class="card text">' +
       '<div class="text-content">' + (post.content || '') + '</div>' +
       '</article>';
   }
 
-  function renderSpacer() {
-    var span = 1 + Math.floor(Math.random() * 5);
-    return '<div class="card spacer" style="grid-column: span ' + span + ';" aria-hidden="true"></div>';
+  // ---- Masonry packing (CSS Grid "row-span hack") ----
+  // grid-auto-rows is a 1px unit; each card's rendered height is measured
+  // and converted into a row-span so cards pack without overlapping, the
+  // same way Pinterest lays out variable-height tiles.
+  function layoutMasonry() {
+    var feed = document.querySelector('.feed');
+    if (!feed) return;
+    var styles = getComputedStyle(feed);
+    var rowHeight = parseFloat(styles.getPropertyValue('grid-auto-rows')) || 1;
+    var rowGap = parseFloat(styles.getPropertyValue('row-gap') || styles.getPropertyValue('gap')) || 0;
+    var cards = feed.querySelectorAll('.card');
+    cards.forEach(function (card) { card.style.gridRowEnd = ''; });
+    cards.forEach(function (card) {
+      var height = card.getBoundingClientRect().height;
+      var span = Math.ceil((height + rowGap) / (rowHeight + rowGap));
+      card.style.gridRowEnd = 'span ' + span;
+    });
   }
+
+  function waitForImages(container) {
+    var imgs = Array.prototype.slice.call(container.querySelectorAll('img'));
+    return Promise.all(imgs.map(function (img) {
+      if (img.complete) return Promise.resolve();
+      return new Promise(function (resolve) {
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true });
+      });
+    }));
+  }
+
+  var resizeTimer;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(layoutMasonry, 150);
+  });
 
   function render() {
     document.title = siteData.siteTitle || 'Mon site';
     var posts = sortedPosts();
-    var prevDate = null;
-    // Re-rolled on every page load, so how sparse or busy the blank columns
-    // feel is itself unpredictable rather than a fixed rate every time.
-    var spacerChance = 0.15 + Math.random() * 0.55;
-    var cards = posts.map(function (post) {
-      // Extra breathing room whenever we cross into a different date, so
-      // the whitespace has some rhythm instead of being purely random.
-      var extra = (prevDate !== null && post.date !== prevDate) ? 60 + Math.floor(Math.random() * 60) : 0;
-      prevDate = post.date;
-      // Occasionally lead with one or two empty columns so rows don't
-      // always start flush with a post — a bit of extra life in the layout.
-      var spacer = '';
-      if (Math.random() < spacerChance) {
-        spacer += renderSpacer();
-        if (Math.random() < 0.2) spacer += renderSpacer();
-      }
-      return spacer + renderCard(post, extra);
-    }).join('');
+    var cards = posts.map(renderCard).join('');
 
     document.getElementById('app').innerHTML =
       '<header class="site-header"><div class="site-title">' + escapeHtml(siteData.siteTitle || 'Mon site') + '</div></header>' +
       (cards
         ? '<main class="feed">' + cards + '</main>'
         : '<p class="muted">Aucun contenu pour le moment.</p>');
+
+    var feed = document.querySelector('.feed');
+    if (feed) waitForImages(feed).then(layoutMasonry);
   }
 
   fetch('data.json', { cache: 'no-store' })
