@@ -346,7 +346,7 @@
     for (var i = 0; i < n; i++) {
       if (Math.random() < 0.12) {
         var sign = Math.random() < 0.5 ? -1 : 1;
-        var base = rand(1.5, 3);
+        var base = rand(1, 2.2);
         spread.forEach(function (pair) {
           var dist = pair[0], weight = pair[1];
           if (dist === 0) { rawAngles[i] += sign * base * weight; return; }
@@ -373,20 +373,20 @@
       // box itself would rotate the padding too, adding reach on top of
       // the space meant to absorb it.
       //
-      // The budget is fixed and small (not derived from the angle) so the
-      // reserved space never reads as a gap breaking the paragraph apart —
-      // the angle is what bends to fit the budget instead: wide lines only
-      // get a faint lean, short ones (a trailing word, a short last line)
-      // can visibly tilt more since the same small budget goes further
-      // over less width. This clamp is also what keeps a big propagated
-      // angle (several overlapping pulls reinforcing each other) safe
-      // regardless of how large the raw sum got.
+      // The padding is computed from the actual angle THIS line ends up
+      // with, not a flat allocation for any tilted line — most lines only
+      // carry a faint, decayed pull from a nearby source and need almost
+      // no room; reserving a fixed amount regardless is what was making
+      // every tilted line look like a gap in the paragraph's texture even
+      // when its own lean was tiny. The absolute angle cap keeps even a
+      // strong source (or several overlapping pulls reinforcing each
+      // other) from ever demanding more than a couple of pixels.
       var tilt = 0;
       if (rawAngles[i] !== 0 && lineRect.width > 0) {
-        var buffer = 4;
-        var maxAngle = Math.min(3, Math.asin(Math.min(1, (2 * buffer) / lineRect.width)) * (180 / Math.PI));
         var sign2 = rawAngles[i] > 0 ? 1 : -1;
-        tilt = sign2 * Math.min(Math.abs(rawAngles[i]), maxAngle);
+        tilt = sign2 * Math.min(Math.abs(rawAngles[i]), 1.6);
+        var reach = (lineRect.width / 2) * Math.sin(Math.abs(tilt) * Math.PI / 180);
+        var buffer = Math.ceil(reach) + 1;
         line.style.paddingTop = buffer + 'px';
         line.style.paddingBottom = buffer + 'px';
         var inner = document.createElement('span');
