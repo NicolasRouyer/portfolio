@@ -151,18 +151,22 @@
       } else if (span === 1) {
         start = colHeights.indexOf(Math.min.apply(null, colHeights));
       } else {
-        var bestStart = 0, bestScore = Infinity, bestBlocked = false;
+        // A wide card starts at the tallest column it spans, leaving a
+        // notch in the shorter one whenever the pair isn't already level.
+        // Rank candidates by imbalance first (so a level pair always wins
+        // over a merely-shorter one) and only use total height to break
+        // ties between equally level candidates.
+        var bestStart = 0, bestImbalance = Infinity, bestMax = Infinity, bestBlocked = true;
         for (var s = 0; s + span <= colCount; s++) {
           var segment = colHeights.slice(s, s + span);
           var segMax = Math.max.apply(null, segment);
           var segMin = Math.min.apply(null, segment);
-          // A wide card starts at the tallest column it spans, leaving a
-          // notch in the shorter one — weight that imbalance so wide cards
-          // prefer already-level pairs of columns over merely-shorter ones.
           var imbalance = segMax - segMin;
           var blocked = isText && colLastType.slice(s, s + span).indexOf('text') !== -1;
-          var score = segMax + imbalance * 6 + (blocked ? 1e9 : 0);
-          if (score < bestScore) { bestScore = score; bestStart = s; bestBlocked = blocked; }
+          var better = blocked !== bestBlocked
+            ? (bestBlocked && !blocked)
+            : (imbalance < bestImbalance) || (imbalance === bestImbalance && segMax < bestMax);
+          if (better) { bestImbalance = imbalance; bestMax = segMax; bestStart = s; bestBlocked = blocked; }
         }
         start = bestStart;
         stillBlocked = bestBlocked; // every pair had a text neighbour — rare, but possible
