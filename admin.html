@@ -76,16 +76,15 @@
   .toolbar button:hover { background: #000; color: #fff; }
 
   .editor {
-    min-height: 200px; outline: none; font-family: 'Times New Roman', Times, serif; font-size: 16px;
+    min-height: 200px; outline: none; font-family: Arial, Helvetica, sans-serif; font-size: 16px;
     line-height: 1.3; border: 1px solid #000; padding: 12px;
   }
   .editor:focus { outline: 1px dotted #000; }
   .editor p { margin: 0 0 18px 0; }
-  .editor h2 { font-size: 1em; font-weight: 400; font-style: normal; margin: 50px 0 14px 0; }
-  .editor h3 { font-size: 1em; font-weight: 400; font-style: normal; margin: 30px 0 10px 0; }
-  .editor blockquote { font-size: 1em; font-weight: 400; font-style: normal; margin: 38px 0 22px 0; padding: 0; }
+  .editor h1, .editor h2, .editor h3 { font-size: 1em; font-weight: 400; margin: 0 0 18px 0; }
+  .editor blockquote { font-weight: 400; margin: 38px 0 22px 0; padding: 0; }
   .editor ul, .editor ol { margin: 0 0 18px 0; padding-left: 22px; }
-  .editor a { text-decoration: underline; }
+  .editor a { font-family: 'Times New Roman', Times, serif; font-style: italic; text-decoration: underline; }
   .editor > *:first-child { margin-top: 0; }
 
   .drop-zone {
@@ -337,9 +336,6 @@
   }
   window.cmdBold = function () { exec('bold'); };
   window.cmdItalic = function () { exec('italic'); };
-  window.cmdParagraph = function () { exec('formatBlock', 'P'); };
-  window.cmdH2 = function () { exec('formatBlock', 'H2'); };
-  window.cmdH3 = function () { exec('formatBlock', 'H3'); };
   window.cmdQuote = function () { exec('formatBlock', 'BLOCKQUOTE'); };
   window.cmdList = function () { exec('insertUnorderedList'); };
   window.cmdLinkExternal = function () {
@@ -468,8 +464,81 @@
     setTimeout(function () { img.src = base + '?r=' + Date.now(); }, 4000);
   };
 
+  // ---------- EXIF date (JPEG only) ----------
+  function ifdEntryOffset(view, tiffStart, ifdStart, little, targetTag) {
+    var count = view.getUint16(ifdStart, little);
+    for (var i = 0; i < count; i++) {
+      var entry = ifdStart + 2 + i * 12;
+      if (view.getUint16(entry, little) === targetTag) {
+        return { count: view.getUint32(entry + 4, little), valueFieldOffset: entry + 8 };
+      }
+    }
+    return null;
+  }
+  function readExifAscii(view, tiffStart, entry, little) {
+    var byteLen = entry.count;
+    var dataOffset = byteLen <= 4 ? entry.valueFieldOffset : tiffStart + view.getUint32(entry.valueFieldOffset, little);
+    var bytes = [];
+    for (var i = 0; i < byteLen; i++) {
+      var b = view.getUint8(dataOffset + i);
+      if (b === 0) break;
+      bytes.push(b);
+    }
+    return String.fromCharCode.apply(null, bytes);
+  }
+  function extractExifDate(file) {
+    return new Promise(function (resolve) {
+      if (!/^image\/jpe?g$/i.test(file.type)) { resolve(null); return; }
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var view = new DataView(reader.result);
+          if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) { resolve(null); return; }
+          var offset = 2;
+          while (offset + 4 <= view.byteLength) {
+            if (view.getUint8(offset) !== 0xFF) break;
+            var marker = view.getUint8(offset + 1);
+            if (marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)) { offset += 2; continue; }
+            if (marker === 0xD9 || marker === 0xDA) break;
+            var segLen = view.getUint16(offset + 2);
+            if (marker === 0xE1 && offset + 4 + 6 <= view.byteLength) {
+              var appStart = offset + 4;
+              if (view.getUint32(appStart) === 0x45786966 && view.getUint16(appStart + 4) === 0) {
+                var tiffStart = appStart + 6;
+                var little = view.getUint16(tiffStart) === 0x4949;
+                var ifd0Offset = tiffStart + view.getUint32(tiffStart + 4, little);
+                var dateStr = null;
+                var exifPtr = ifdEntryOffset(view, tiffStart, ifd0Offset, little, 0x8769);
+                if (exifPtr) {
+                  var exifIFDOffset = tiffStart + view.getUint32(exifPtr.valueFieldOffset, little);
+                  var dtEntry = ifdEntryOffset(view, tiffStart, exifIFDOffset, little, 0x9003);
+                  if (dtEntry) dateStr = readExifAscii(view, tiffStart, dtEntry, little);
+                }
+                if (!dateStr) {
+                  var dtEntry2 = ifdEntryOffset(view, tiffStart, ifd0Offset, little, 0x0132);
+                  if (dtEntry2) dateStr = readExifAscii(view, tiffStart, dtEntry2, little);
+                }
+                if (dateStr) {
+                  var m = /^(\d{4}):(\d{2}):(\d{2})/.exec(dateStr);
+                  if (m) { resolve(m[1] + '-' + m[2] + '-' + m[3]); return; }
+                }
+              }
+            }
+            offset += 2 + segLen;
+          }
+          resolve(null);
+        } catch (e) { resolve(null); }
+      };
+      reader.onerror = function () { resolve(null); };
+      reader.readAsArrayBuffer(file.slice(0, 131072));
+    });
+  }
+
   function uploadDraftImageFile(file) {
     if (!/^image\//.test(file.type)) return;
+    extractExifDate(file).then(function (exifDate) {
+      if (exifDate) { draft.date = exifDate; render(); }
+    });
     showUploadStatus('Téléversement de l\'image…');
     uploadImageToGithub(file).then(function (path) {
       draft.src = path;
@@ -549,9 +618,6 @@
         '<div class="toolbar">' +
           '<button onclick="cmdBold()"><b>G</b></button>' +
           '<button onclick="cmdItalic()"><i>I</i></button>' +
-          '<button onclick="cmdParagraph()">Texte</button>' +
-          '<button onclick="cmdH2()">Titre 2</button>' +
-          '<button onclick="cmdH3()">Titre 3</button>' +
           '<button onclick="cmdQuote()">Citation</button>' +
           '<button onclick="cmdList()">Liste</button>' +
           '<button onclick="cmdLinkExternal()">Lien externe</button>' +
