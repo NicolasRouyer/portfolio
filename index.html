@@ -29,6 +29,9 @@
   .card.text { padding: 20px; border-radius: 2px; }
   .card.spacer { visibility: hidden; }
   .card img { width: 100%; height: auto; display: block; border-radius: 2px; }
+  /* Plein écran stays edge-to-edge by design — only small/large cards get
+     the photo shrunk within its reserved block. */
+  .card:not(.full) img { width: 50%; margin: 0 auto; }
   .card .caption { margin: 8px 0 0 0; }
 
   /* Left-aligned text has zero natural slack on its left — every line
@@ -393,8 +396,15 @@
     for (var i = 0; i < text.length; i++) {
       var g = document.createElement('span');
       g.className = 'title-glyph';
-      g.textContent = text[i];
-      var tx = rand(-3, 3), ty = rand(-6, 6), gr = rand(-8, 8);
+      // A bare space inside an inline-block collapses to zero width in most
+      // browsers — a non-breaking space keeps the word gap real.
+      g.textContent = text[i] === ' ' ? ' ' : text[i];
+      // The irregular gap is a real margin, not a transform: transforms are
+      // paint-only and don't push neighbours apart, so relying on the wobble
+      // alone let adjacent letters land on top of each other. This margin is
+      // what actually spaces them; the small translate is just added jitter.
+      g.style.marginRight = rand(1, 9).toFixed(1) + 'px';
+      var tx = rand(-1.5, 1.5), ty = rand(-6, 6), gr = rand(-8, 8);
       g.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) rotate(' + gr.toFixed(1) + 'deg)';
       el.appendChild(g);
     }
