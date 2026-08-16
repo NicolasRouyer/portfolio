@@ -342,11 +342,16 @@
     // line's pull can come from a source before OR after it, before any
     // line is actually processed below.
     var rawAngles = new Array(n).fill(0);
-    var spread = [[0, 1], [1, 0.55], [2, 0.22]];
+    // Distance 2 dropped and the source chance halved: reaching two lines
+    // out on both sides at 12%-per-line meant nearly every line in a
+    // typical paragraph carried at least a faint pull, so the paragraph
+    // read as loosened everywhere instead of just leaning near a few
+    // sources.
+    var spread = [[0, 1], [1, 0.5]];
     for (var i = 0; i < n; i++) {
-      if (Math.random() < 0.12) {
+      if (Math.random() < 0.06) {
         var sign = Math.random() < 0.5 ? -1 : 1;
-        var base = rand(1, 2.2);
+        var base = rand(0.5, 1.1);
         spread.forEach(function (pair) {
           var dist = pair[0], weight = pair[1];
           if (dist === 0) { rawAngles[i] += sign * base * weight; return; }
@@ -384,7 +389,7 @@
       var tilt = 0;
       if (rawAngles[i] !== 0 && lineRect.width > 0) {
         var sign2 = rawAngles[i] > 0 ? 1 : -1;
-        tilt = sign2 * Math.min(Math.abs(rawAngles[i]), 1.6);
+        tilt = sign2 * Math.min(Math.abs(rawAngles[i]), 0.8);
         var reach = (lineRect.width / 2) * Math.sin(Math.abs(tilt) * Math.PI / 180);
         var buffer = Math.ceil(reach) + 1;
         line.style.paddingTop = buffer + 'px';
