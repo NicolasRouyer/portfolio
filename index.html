@@ -14,20 +14,12 @@
   .site-title { font-weight: 400; text-transform: uppercase; word-break: break-word; }
 
   .feed {
-    display: grid; grid-template-columns: repeat(6, 1fr);
-    gap: 32px 24px; align-items: start;
-    padding: 0 48px 80px;
+    display: grid; grid-template-columns: repeat(10, 1fr);
+    gap: 24px 16px; align-items: start;
+    padding: 0 0 80px;
   }
-  .card img { width: 100%; height: auto; display: block; }
+  .card img { width: auto; max-width: 100%; height: auto; max-height: 65vh; display: block; }
   .card .caption { margin: 8px 0 0 0; }
-
-  /* Irregular column spans + vertical offsets so the feed doesn't read as a rigid grid. */
-  .card:nth-child(6n+1) { grid-column: span 3; }
-  .card:nth-child(6n+2) { grid-column: span 2; margin-top: 48px; }
-  .card:nth-child(6n+3) { grid-column: span 4; }
-  .card:nth-child(6n+4) { grid-column: span 3; margin-top: 24px; }
-  .card:nth-child(6n+5) { grid-column: span 2; }
-  .card:nth-child(6n+6) { grid-column: span 3; margin-top: 60px; }
 
   .text-content { max-width: 34em; }
   .text-content p { margin: 0 0 18px 0; }
@@ -40,14 +32,14 @@
   .muted { font-style: normal; padding: 0 48px; }
 
   @media (max-width: 900px) {
-    .feed { grid-template-columns: repeat(4, 1fr); gap: 28px 20px; padding: 0 28px 56px; }
-    .card { grid-column: span 2 !important; margin-top: 0 !important; }
-    .card:nth-child(3n+2) { grid-column: span 3 !important; margin-top: 32px !important; }
+    .feed { grid-template-columns: repeat(6, 1fr); gap: 20px 14px; padding: 0 0 56px; }
+    .card img { max-height: 55vh; }
     .site-header { padding: 40px 28px 32px; }
   }
   @media (max-width: 560px) {
-    .feed { grid-template-columns: 1fr; gap: 40px; padding: 0 20px 40px; }
+    .feed { grid-template-columns: 1fr; gap: 36px; padding: 0 20px 40px; }
     .card { grid-column: span 1 !important; margin-top: 0 !important; }
+    .card img { max-height: 60vh; }
     .site-header { padding: 32px 20px 24px; }
     .muted { padding: 0 20px; }
   }
@@ -87,14 +79,25 @@
     });
   }
 
-  function renderCard(post) {
+  // Grid is 10 columns wide (see .feed); narrower breakpoints reduce the
+  // track count in CSS and browsers clamp an oversized span down to fit,
+  // so these spans stay meaningful without any JS resize handling.
+  var IMAGE_SPANS = [2, 2, 3, 3, 4];
+  var TEXT_SPANS = [3, 4, 4, 5];
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function renderCard(post, extraMarginTop) {
+    var span = pick(post.type === 'image' ? IMAGE_SPANS : TEXT_SPANS);
+    var jitter = Math.floor(Math.random() * 32);
+    var style = 'grid-column: span ' + span + '; margin-top: ' + (jitter + extraMarginTop) + 'px;';
+
     if (post.type === 'image') {
-      return '<article class="card">' +
+      return '<article class="card" style="' + style + '">' +
         '<img src="' + escapeAttr(post.src) + '" alt="" onerror="handleImgError(this)">' +
         (post.caption ? '<p class="caption">' + escapeHtml(post.caption) + '</p>' : '') +
         '</article>';
     }
-    return '<article class="card">' +
+    return '<article class="card" style="' + style + '">' +
       '<div class="text-content">' + (post.content || '') + '</div>' +
       '</article>';
   }
@@ -102,7 +105,14 @@
   function render() {
     document.title = siteData.siteTitle || 'Mon site';
     var posts = sortedPosts();
-    var cards = posts.map(renderCard).join('');
+    var prevDate = null;
+    var cards = posts.map(function (post) {
+      // Extra breathing room whenever we cross into a different date, so
+      // the whitespace has some rhythm instead of being purely random.
+      var extra = (prevDate !== null && post.date !== prevDate) ? 60 + Math.floor(Math.random() * 60) : 0;
+      prevDate = post.date;
+      return renderCard(post, extra);
+    }).join('');
 
     document.getElementById('app').innerHTML =
       '<header class="site-header"><div class="site-title">' + escapeHtml(siteData.siteTitle || 'Mon site') + '</div></header>' +
