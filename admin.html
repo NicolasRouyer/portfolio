@@ -333,6 +333,16 @@
     draft.content = el.innerHTML;
   };
 
+  // Pasting from another site (Word, a webpage…) carries its own inline
+  // fonts/sizes/colors, which would silently override the site's typography.
+  // Strip to plain text so pasted content always matches the site's style.
+  window.handleEditorPaste = function (e) {
+    e.preventDefault();
+    var text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
+    window.onDraftContentChanged();
+  };
+
   function exec(cmd, val) {
     var el = getEditorEl();
     if (!el) return;
@@ -629,7 +639,7 @@
           '<button onclick="cmdList()">Liste</button>' +
           '<button onclick="cmdLinkExternal()">Lien externe</button>' +
         '</div>' +
-        '<div id="editor" class="editor" contenteditable="true" oninput="onDraftContentChanged(this)">' + draft.content + '</div>';
+        '<div id="editor" class="editor" contenteditable="true" oninput="onDraftContentChanged(this)" onpaste="handleEditorPaste(event)">' + draft.content + '</div>';
     } else {
       body = '<p class="upload-status" id="upload-status"></p>';
       if (draft.src) {

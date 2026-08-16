@@ -152,8 +152,13 @@
     // Re-rolled every load, so how sparse or busy the blank blocks feel
     // varies from one visit to the next.
     var spacerChance = 0.15 + Math.random() * 0.35;
+    var prevType = null;
     var cards = posts.map(function (post) {
-      var spacer = Math.random() < spacerChance ? renderSpacer() : '';
+      // Two text posts back to back would blend into one big yellow block,
+      // so always break them up — everywhere else the spacer stays a chance.
+      var forced = post.type === 'text' && prevType === 'text';
+      var spacer = (forced || Math.random() < spacerChance) ? renderSpacer() : '';
+      prevType = post.type;
       return spacer + renderCard(post);
     }).join('');
 
