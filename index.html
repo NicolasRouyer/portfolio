@@ -11,7 +11,7 @@
   a { color: inherit; font-family: 'Times New Roman', Times, serif; font-style: italic; text-decoration: underline; }
 
   .site-header {
-    padding: 56px 48px 40px; text-align: center;
+    padding: 56px 48px 40px;
     position: sticky; top: 0; z-index: 10; background: #fff;
   }
   .site-title { display: inline-block; font-weight: 400; text-transform: uppercase; word-break: break-word; }
@@ -453,6 +453,22 @@
     }
   }
 
+  // Not centred — landed anywhere within the middle 50% of the header's
+  // content width, re-rolled on every page load. Measured with
+  // offsetWidth rather than getBoundingClientRect: the title itself
+  // already carries the whole-block rotate from renderTitleAccident
+  // above, and offsetWidth reports the unrotated layout box, which is
+  // what actually needs to fit inside the zone.
+  function positionTitleRandomly(el) {
+    var header = el.parentElement;
+    var cs = getComputedStyle(header);
+    var contentWidth = header.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var zoneLeft = contentWidth * 0.25;
+    var zoneRight = contentWidth * 0.75;
+    var maxLeft = Math.max(zoneLeft, zoneRight - el.offsetWidth);
+    el.style.marginLeft = rand(zoneLeft, maxLeft).toFixed(1) + 'px';
+  }
+
   // Blank, column-aligned filler blocks — re-rolled on every page load so
   // the layout never packs identically twice.
   function renderSpacer() {
@@ -606,7 +622,10 @@
         : '<p class="muted">Aucun contenu pour le moment.</p>');
 
     var titleEl = document.querySelector('.site-title');
-    if (titleEl) renderTitleAccident(titleEl);
+    if (titleEl) {
+      renderTitleAccident(titleEl);
+      positionTitleRandomly(titleEl);
+    }
 
     var feed = document.querySelector('.feed');
     if (feed) {
