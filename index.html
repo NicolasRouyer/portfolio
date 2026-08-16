@@ -378,8 +378,8 @@
       // without reintroducing reserved space.
       var tilt = 0;
       if (rawAngles[i] !== 0 && lineRect.width > 0) {
-        var naturalSlack = 1;
-        var maxAngle = Math.min(1.5, Math.asin(Math.min(1, (2 * naturalSlack) / lineRect.width)) * (180 / Math.PI));
+        var naturalSlack = 1.75;
+        var maxAngle = Math.min(2.5, Math.asin(Math.min(1, (2 * naturalSlack) / lineRect.width)) * (180 / Math.PI));
         var sign2 = rawAngles[i] > 0 ? 1 : -1;
         tilt = sign2 * Math.min(Math.abs(rawAngles[i]), maxAngle);
       }
