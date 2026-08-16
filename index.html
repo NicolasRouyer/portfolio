@@ -50,14 +50,12 @@
   .text-content i, .text-content em { font-family: 'Times New Roman', Times, serif; font-style: italic; }
 
   /* "Accidents": every real rendered line of every paragraph/list item
-     drifts a little horizontally from the one before it. Bold is never
-     rendered bold — a single bold word has its letters individually
-     offset; a bold phrase tilts slightly within whatever line it landed
-     on (line-splitting already happened at the paragraph level above). */
+     drifts a little horizontally from the one before it, and occasionally
+     tilts too. Bold is never rendered bold — every letter, whether it's a
+     single word or a whole phrase, gets individually offset instead. */
   .line-drift { display: block; width: fit-content; }
-  .accident-word { display: inline-block; white-space: nowrap; font-weight: 400; }
+  .accident-word { display: inline-block; font-weight: 400; }
   .glyph { display: inline-block; }
-  .accident-text { display: inline-block; font-weight: 400; }
 
   .muted { font-style: normal; padding: 0 48px; }
 
@@ -335,6 +333,7 @@
     var refWidth = canvasRect.width;
     var maxStep = refWidth * maxPercent;
     var offset = 0;
+    var lastTilted = false;
     lines.forEach(function (line) {
       var lineRect = line.getBoundingClientRect();
       var slackRight = canvasRect.right - lineRect.right;
@@ -342,36 +341,58 @@
       var proposed = offset + rand(-maxStep, maxStep);
       proposed = Math.max(-slackLeft, Math.min(slackRight, proposed));
       offset = proposed;
-      line.style.transform = 'translateX(' + offset.toFixed(1) + 'px)';
+
+      // Occasional tilt, not on every line (that reads as mechanical) and
+      // never two in a row, so a tilted line always has a level neighbour
+      // above and below. Lines otherwise pack with zero natural gap, so a
+      // rotated line's bounding box would reach straight into its
+      // neighbour's — rotating around the centre (so the reach is split
+      // between both ends) and reserving that exact amount as real margin
+      // (not just a transform, so it also grows the paragraph's measured
+      // height) is what actually keeps them apart, rather than trying to
+      // cap the angle small enough to hope it never reaches.
+      var tilt = 0;
+      if (!lastTilted && Math.random() < 0.2 && lineRect.width > 0) {
+        tilt = rand(0.7, 2.5) * (Math.random() < 0.5 ? -1 : 1);
+        var reach = (lineRect.width / 2) * Math.sin(Math.abs(tilt) * Math.PI / 180);
+        var buffer = Math.ceil(reach) + 1;
+        line.style.marginTop = buffer + 'px';
+        line.style.marginBottom = buffer + 'px';
+        line.style.transformOrigin = 'center';
+      }
+      lastTilted = tilt !== 0;
+
+      line.style.transform = 'translateX(' + offset.toFixed(1) + 'px)' +
+        (tilt ? ' rotate(' + tilt.toFixed(2) + 'deg)' : '');
     });
   }
 
-  function processWordBold(el) {
-    var word = el.textContent;
+  // Bold is never rendered bold — every letter gets individually offset,
+  // whether the bold span is a single word or a whole phrase. A plain space
+  // is kept as a real text node (not wrapped in its own glyph span) so word
+  // gaps stay visible and a scattered phrase still wraps normally at word
+  // boundaries, same as ordinary text.
+  function scatterBoldGlyphs(el) {
+    var text = el.textContent;
     el.textContent = '';
     el.classList.add('accident-word');
-    for (var i = 0; i < word.length; i++) {
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (ch === ' ') {
+        el.appendChild(document.createTextNode(' '));
+        continue;
+      }
       var g = document.createElement('span');
       g.className = 'glyph';
-      g.textContent = word[i];
+      g.textContent = ch;
       var rot = rand(-12, 12), ty = rand(-3, 3);
       g.style.transform = 'translateY(' + ty.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg)';
       el.appendChild(g);
     }
   }
 
-  function processPhraseBold(el) {
-    el.classList.add('accident-text');
-    var rot = rand(-3, 3), ty = rand(-4, 4);
-    el.style.transform = 'rotate(' + rot.toFixed(2) + 'deg) translateY(' + ty.toFixed(1) + 'px)';
-  }
-
   function processBoldWithinLines(container) {
-    container.querySelectorAll('b, strong').forEach(function (b) {
-      var isWord = b.textContent.trim().indexOf(' ') === -1;
-      if (isWord) processWordBold(b);
-      else processPhraseBold(b);
-    });
+    container.querySelectorAll('b, strong').forEach(scatterBoldGlyphs);
   }
 
   function processAccidents(container) {
