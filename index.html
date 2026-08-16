@@ -10,52 +10,49 @@
   body { font-family: 'Times New Roman', Times, serif; font-size: 16px; line-height: 1.6; }
   a { color: inherit; }
 
-  .app { display: flex; min-height: 100vh; }
-
-  .sidebar {
-    width: 220px; flex: none;
-    padding: 56px 30px; display: flex; flex-direction: column; gap: 34px;
-  }
+  .site-header { padding: 56px 48px 40px; }
   .site-title {
     font-family: Arial, Helvetica, sans-serif; font-size: 1em; font-weight: 400;
     text-transform: uppercase; word-break: break-word;
   }
-  .nav-list { display: flex; flex-direction: column; gap: 12px; }
-  .nav-link { display: block; text-decoration: none; color: #000; }
-  .nav-link.current { text-decoration: underline; }
 
-  .content { flex: 1; padding: 64px 48px; }
-  .content-inner { max-width: 640px; }
-  .content h1 {
-    font-family: Arial, Helvetica, sans-serif; font-size: 1em; font-weight: 400;
-    text-transform: uppercase; margin: 0 0 30px 0;
+  .feed {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 56px 40px; align-items: start;
+    padding: 0 48px 80px;
   }
-  .muted { font-style: normal; }
+  .card { }
+  .card .meta {
+    font-family: Arial, Helvetica, sans-serif; font-size: 1em; font-weight: 400;
+    text-transform: uppercase; margin: 0 0 10px 0;
+  }
+  .card img { width: 100%; height: auto; display: block; }
+  .card .caption { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin: 8px 0 0 0; }
 
-  .page-body p { margin: 0 0 18px 0; }
-  .page-body h2 { font-size: 1em; font-weight: 400; font-style: normal; margin: 50px 0 14px 0; }
-  .page-body h3 { font-size: 1em; font-weight: 400; font-style: normal; margin: 30px 0 10px 0; }
-  .page-body blockquote { font-size: 1em; font-weight: 400; font-style: normal; margin: 38px 0 22px 0; padding: 0; }
-  .page-body ul, .page-body ol { margin: 0 0 18px 0; padding-left: 22px; }
-  .page-body a { text-decoration: underline; }
+  .text-content p { margin: 0 0 18px 0; }
+  .text-content h2 { font-size: 1em; font-weight: 400; font-style: normal; margin: 50px 0 14px 0; }
+  .text-content h3 { font-size: 1em; font-weight: 400; font-style: normal; margin: 30px 0 10px 0; }
+  .text-content blockquote { font-size: 1em; font-weight: 400; font-style: normal; margin: 38px 0 22px 0; padding: 0; }
+  .text-content ul, .text-content ol { margin: 0 0 18px 0; padding-left: 22px; }
+  .text-content a { text-decoration: underline; }
+  .text-content > *:first-child { margin-top: 0; }
 
-  .page-body img { max-width: 100%; height: auto; display: block; margin: 30px 0 0 0; }
-  .page-body p.caption { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin: 8px 0 30px 0; }
+  .muted { font-style: normal; padding: 0 48px; }
 
-  figure.site-figure { margin: 30px 0; }
-  figure.site-figure img { max-width: 100%; height: auto; display: block; margin: 0; }
-  figure.site-figure figcaption { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin-top: 8px; }
-
-  @media (max-width: 680px) {
-    .app { flex-direction: column; }
-    .sidebar { width: 100%; padding: 32px 22px; gap: 20px; }
-    .content { padding: 36px 22px; }
+  @media (max-width: 900px) {
+    .feed { grid-template-columns: repeat(2, 1fr); gap: 44px 28px; padding: 0 28px 56px; }
+    .site-header { padding: 40px 28px 32px; }
+  }
+  @media (max-width: 560px) {
+    .feed { grid-template-columns: 1fr; gap: 40px; padding: 0 20px 40px; }
+    .site-header { padding: 32px 20px 24px; }
+    .muted { padding: 0 20px; }
   }
 </style>
 </head>
 <body>
 
-<div id="app"><div style="padding:40px;font-style:italic;">Chargement…</div></div>
+<div id="app"><div class="muted" style="padding-top:40px;">Chargement…</div></div>
 
 <script>
 (function () {
@@ -65,6 +62,9 @@
     var d = document.createElement('div');
     d.textContent = str == null ? '' : String(str);
     return d.innerHTML;
+  }
+  function escapeAttr(str) {
+    return escapeHtml(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   // Retries images that briefly 404 right after GitHub Pages redeploys.
@@ -77,51 +77,49 @@
     setTimeout(function () { img.src = base + '?r=' + Date.now(); }, 4000);
   };
 
-  function visiblePages() {
-    return (siteData.pages || []).filter(function (p) { return p.visible !== false; });
+  function fmtDate(iso) {
+    var d = new Date(iso + 'T00:00:00');
+    if (isNaN(d.getTime())) return iso || '';
+    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
-  function currentSlug() {
-    var h = location.hash.replace(/^#/, '');
-    var vis = visiblePages();
-    if (h && vis.some(function (p) { return p.slug === h; })) return h;
-    return vis[0] && vis[0].slug;
+  function sortedPosts() {
+    return (siteData.posts || []).slice().sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
   }
 
-  function findPage(slug) {
-    var list = visiblePages();
-    for (var i = 0; i < list.length; i++) if (list[i].slug === slug) return list[i];
-    return list[0];
+  function renderMeta(post) {
+    var parts = [fmtDate(post.date)];
+    if (post.category) parts.push(post.category);
+    if (post.project) parts.push(post.project);
+    return '<div class="meta">' + parts.map(escapeHtml).join(' · ') + '</div>';
+  }
+
+  function renderCard(post) {
+    if (post.type === 'image') {
+      return '<article class="card">' + renderMeta(post) +
+        '<img src="' + escapeAttr(post.src) + '" alt="" onerror="handleImgError(this)">' +
+        (post.caption ? '<p class="caption">' + escapeHtml(post.caption) + '</p>' : '') +
+        '</article>';
+    }
+    return '<article class="card">' + renderMeta(post) +
+      '<div class="text-content">' + (post.content || '') + '</div>' +
+      '</article>';
   }
 
   function render() {
     document.title = siteData.siteTitle || 'Mon site';
-    var slug = currentSlug();
-    var page = findPage(slug);
-    if (!page) {
-      document.getElementById('app').innerHTML = '<div style="padding:40px;">Aucune page.</div>';
-      return;
-    }
-
-    var nav = visiblePages().map(function (p) {
-      var cls = p.slug === page.slug ? 'nav-link current' : 'nav-link';
-      return '<a class="' + cls + '" href="#' + p.slug + '">' + escapeHtml(p.title) + '</a>';
-    }).join('');
+    var posts = sortedPosts();
+    var cards = posts.map(renderCard).join('');
 
     document.getElementById('app').innerHTML =
-      '<div class="app">' +
-        '<div class="sidebar">' +
-          '<div class="site-title">' + escapeHtml(siteData.siteTitle || 'Mon site') + '</div>' +
-          '<nav class="nav-list">' + nav + '</nav>' +
-        '</div>' +
-        '<div class="content"><div class="content-inner">' +
-          '<h1>' + escapeHtml(page.title) + '</h1>' +
-          '<div class="page-body">' + (page.content || '') + '</div>' +
-        '</div></div>' +
-      '</div>';
+      '<header class="site-header"><div class="site-title">' + escapeHtml(siteData.siteTitle || 'Mon site') + '</div></header>' +
+      (cards
+        ? '<main class="feed">' + cards + '</main>'
+        : '<p class="muted">Aucun contenu pour le moment.</p>');
   }
-
-  window.addEventListener('hashchange', render);
 
   fetch('data.json', { cache: 'no-store' })
     .then(function (res) {
@@ -134,7 +132,7 @@
     })
     .catch(function (e) {
       document.getElementById('app').innerHTML =
-        '<div style="padding:40px;">Impossible de charger data.json. ' +
+        '<div class="muted" style="padding-top:40px;">Impossible de charger data.json. ' +
         'Vérifiez qu\'il se trouve bien à côté de ce fichier index.html.<br><small>' +
         escapeHtml(e.message) + '</small></div>';
     });

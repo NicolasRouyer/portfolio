@@ -34,69 +34,94 @@
   }
   .rename-btn:hover, .small-btn:hover { background: #000; color: #fff; }
 
-  .nav-list { display: flex; flex-direction: column; gap: 6px; }
-
-  .nav-edit-item {
-    border: 1px solid #000; padding: 8px; cursor: pointer;
-    font-family: 'Times New Roman', Times, serif;
-  }
-  .nav-edit-item.current { border-width: 2px; }
-  .nav-edit-item input[type="text"] {
-    width: 100%; font-family: inherit; font-size: 13px; border: 1px solid #000;
-    padding: 3px 4px; background: #fff; color: #000; margin-bottom: 6px;
-  }
-  .nav-edit-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11px; }
-  .nav-edit-controls button {
-    border: 1px solid #000; background: #fff; color: #000;
-    cursor: pointer; font-family: inherit; font-size: 12px; padding: 2px 6px;
-  }
-  .nav-edit-controls button:hover { background: #000; color: #fff; }
-  .visible-label { display: flex; align-items: center; gap: 4px; }
-
   .add-page-btn, .publish-btn {
     width: 100%; border: 1px solid #000; background: #fff; color: #000;
     padding: 8px; font-family: inherit; font-size: 13px; cursor: pointer;
   }
-  .add-page-btn:hover { background: #000; color: #fff; }
-  .publish-btn { font-weight: bold; }
   .publish-btn:hover { background: #000; color: #fff; }
   .publish-btn:disabled { opacity: 0.4; cursor: default; }
   .publish-btn:disabled:hover { background: #fff; color: #000; }
 
   .status { font-size: 11px; font-style: italic; min-height: 28px; }
-  .status.dirty { font-style: normal; font-weight: bold; }
+  .status.dirty { font-style: normal; }
 
   .content { flex: 1; padding: 56px 48px; }
-  .content-inner { max-width: 640px; }
+  .content-inner { max-width: 680px; }
   .content h1 {
     font-family: Arial, Helvetica, sans-serif; font-size: 1em; font-weight: 400;
     text-transform: uppercase; margin: 0 0 24px 0;
   }
   .muted { font-style: normal; }
 
+  .type-toggle { display: flex; gap: 16px; margin-bottom: 20px; }
+  .type-toggle button {
+    border: none; background: none; color: #000; font-family: inherit; font-size: 14px;
+    padding: 0; cursor: pointer; text-decoration: none;
+  }
+  .type-toggle button.active { text-decoration: underline; }
+
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block; font-size: 11px; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .field input[type="text"], .field input[type="date"] {
+    width: 100%; font-family: inherit; font-size: 14px; border: 1px solid #000;
+    padding: 6px 8px; background: #fff; color: #000;
+  }
+  .fields-row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .fields-row .field { flex: 1; min-width: 160px; }
+
   .toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #000; }
   .toolbar button { border: 1px solid #000; background: #fff; color: #000; font-family: inherit; font-size: 12px; padding: 5px 9px; cursor: pointer; }
   .toolbar button:hover { background: #000; color: #fff; }
 
-  .page-body {
-    min-height: 300px; outline: none; font-family: 'Times New Roman', Times, serif; font-size: 16px;
+  .editor {
+    min-height: 200px; outline: none; font-family: 'Times New Roman', Times, serif; font-size: 16px;
+    border: 1px solid #000; padding: 12px;
   }
-  .page-body:focus { outline: 1px dotted #000; }
-  .page-body p { margin: 0 0 18px 0; }
-  .page-body h2 { font-size: 1em; font-weight: 400; font-style: normal; margin: 50px 0 14px 0; }
-  .page-body h3 { font-size: 1em; font-weight: 400; font-style: normal; margin: 30px 0 10px 0; }
-  .page-body blockquote { font-size: 1em; font-weight: 400; font-style: normal; margin: 38px 0 22px 0; padding: 0; }
-  .page-body ul, .page-body ol { margin: 0 0 18px 0; padding-left: 22px; }
-  .page-body a { text-decoration: underline; }
-  .page-body a.internal-link { font-weight: bold; }
+  .editor:focus { outline: 1px dotted #000; }
+  .editor p { margin: 0 0 18px 0; }
+  .editor h2 { font-size: 1em; font-weight: 400; font-style: normal; margin: 50px 0 14px 0; }
+  .editor h3 { font-size: 1em; font-weight: 400; font-style: normal; margin: 30px 0 10px 0; }
+  .editor blockquote { font-size: 1em; font-weight: 400; font-style: normal; margin: 38px 0 22px 0; padding: 0; }
+  .editor ul, .editor ol { margin: 0 0 18px 0; padding-left: 22px; }
+  .editor a { text-decoration: underline; }
+  .editor > *:first-child { margin-top: 0; }
 
-  figure.site-figure { margin: 30px 0; }
-  figure.site-figure img { max-width: 100%; height: auto; display: block; margin: 0; }
-  figure.site-figure figcaption { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin-top: 8px; }
-  .page-body img { max-width: 100%; height: auto; display: block; margin: 30px 0 0 0; }
-  .page-body p.caption { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin: 8px 0 30px 0; }
-  .page-body.drag-over { outline: 2px dashed #000; outline-offset: -4px; }
+  .drop-zone {
+    border: 1px dashed #000; padding: 40px 20px; text-align: center; cursor: pointer;
+    font-size: 13px;
+  }
+  .drop-zone.drag-over { border-style: solid; }
+  .image-preview { margin-bottom: 12px; }
+  .image-preview img { max-width: 100%; height: auto; display: block; border: 1px solid #000; }
+  .image-preview .small-btn { margin-top: 8px; }
+
   .upload-status { font-size: 13px; font-style: italic; margin: 0 0 10px 0; }
+
+  .composer-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .composer-actions button {
+    border: 1px solid #000; background: #fff; color: #000; font-family: inherit;
+    font-size: 13px; padding: 8px 14px; cursor: pointer;
+  }
+  .composer-actions button:hover { background: #000; color: #fff; }
+
+  .post-list { margin-top: 56px; padding-top: 24px; border-top: 1px solid #000; }
+  .post-row { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid #000; }
+  .post-row .thumb { width: 56px; height: 56px; flex: none; object-fit: cover; border: 1px solid #000; }
+  .post-row .thumb-placeholder { width: 56px; height: 56px; flex: none; border: 1px solid #000; }
+  .post-row .row-body { flex: 1; min-width: 0; }
+  .post-row .row-meta { font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
+  .post-row .row-snippet {
+    font-family: 'Times New Roman', Times, serif; font-size: 14px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .post-row .row-actions { flex: none; display: flex; gap: 8px; }
+  .post-row .row-actions button {
+    border: 1px solid #000; background: #fff; color: #000; font-family: inherit;
+    font-size: 11px; padding: 3px 8px; cursor: pointer;
+  }
+  .post-row .row-actions button:hover { background: #000; color: #fff; }
 
   @media (max-width: 680px) {
     .app { flex-direction: column; }
@@ -117,8 +142,11 @@
   var config = null;      // {owner, repo, branch, path, token}
   var lastSha = null;
   var siteTitle = 'Mon site';
-  var pages = [];          // [{id, slug, title, visible, content}]
-  var currentPageId = null;
+  var categories = [];    // string[]
+  var projects = [];      // string[]
+  var posts = [];         // [{id, type, date, category, project, content, src, caption, createdAt}]
+  var editingPostId = null;
+  var draft = null;
   var hasUnsavedChanges = false;
 
   // ---------- Helpers ----------
@@ -126,10 +154,14 @@
     if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
     return 'p' + Date.now().toString(16) + Math.random().toString(16).slice(2);
   }
-  function slugify(str) {
-    return (str || 'page').toString().toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'page';
+  function todayStr() {
+    var d = new Date();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+  function blankDraft() {
+    return { type: 'text', date: todayStr(), category: '', project: '', content: '<p><br></p>', src: null, caption: '' };
   }
   function escapeHtml(str) {
     var d = document.createElement('div');
@@ -193,21 +225,28 @@
   function loadSiteFromGithub() {
     return fetch(apiUrl() + '?ref=' + encodeURIComponent(config.branch), { headers: authHeaders() })
       .then(function (res) {
-        if (res.status === 404) { lastSha = null; siteTitle = 'Mon site'; pages = []; return; }
+        if (res.status === 404) { lastSha = null; siteTitle = 'Mon site'; categories = []; projects = []; posts = []; return; }
         if (!res.ok) throw new Error('Code ' + res.status + ' — vérifiez la configuration et le jeton.');
         return res.json().then(function (json) {
           lastSha = json.sha;
           var data = JSON.parse(b64DecodeUtf8(json.content));
           siteTitle = data.siteTitle || 'Mon site';
-          pages = Array.isArray(data.pages) ? data.pages.map(function (p) {
-            return { id: p.id || genId(), slug: p.slug || slugify(p.title), title: p.title || 'Sans titre', visible: p.visible !== false, content: p.content || '' };
+          categories = Array.isArray(data.categories) ? data.categories : [];
+          projects = Array.isArray(data.projects) ? data.projects : [];
+          posts = Array.isArray(data.posts) ? data.posts.map(function (p) {
+            return {
+              id: p.id || genId(), type: p.type === 'image' ? 'image' : 'text',
+              date: p.date || todayStr(), category: p.category || '', project: p.project || '',
+              content: p.content || '', src: p.src || null, caption: p.caption || '',
+              createdAt: p.createdAt || 0
+            };
           }) : [];
         });
       });
   }
 
   window.publishToGithub = function () {
-    var jsonStr = JSON.stringify({ siteTitle: siteTitle, pages: pages }, null, 2);
+    var jsonStr = JSON.stringify({ siteTitle: siteTitle, categories: categories, projects: projects, posts: posts }, null, 2);
     setStatus('Publication…', false);
     fetch(apiUrl() + '?ref=' + encodeURIComponent(config.branch), { headers: authHeaders() })
       .then(function (res) {
@@ -247,7 +286,7 @@
   };
 
   window.downloadBackup = function () {
-    var jsonStr = JSON.stringify({ siteTitle: siteTitle, pages: pages }, null, 2);
+    var jsonStr = JSON.stringify({ siteTitle: siteTitle, categories: categories, projects: projects, posts: posts }, null, 2);
     var blob = new Blob([jsonStr], { type: 'application/json' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
@@ -256,86 +295,35 @@
     URL.revokeObjectURL(url);
   };
 
-  // ---------- Page actions ----------
-  window.selectPage = function (id) { currentPageId = id; render(); };
-
-  window.addPage = function () {
-    var id = genId();
-    var usedSlugs = pages.map(function (p) { return p.slug; });
-    var base = slugify('Nouvelle page'), slug = base, n = 2;
-    while (usedSlugs.indexOf(slug) !== -1) { slug = base + '-' + n; n++; }
-    pages.push({ id: id, slug: slug, title: 'Nouvelle page', visible: true, content: '<p><br></p>' });
-    currentPageId = id;
-    markDirty();
-    render();
-    var input = document.querySelector('.nav-edit-item.current input[type="text"]');
-    if (input) { input.focus(); input.select(); }
-  };
-
-  window.deletePage = function (id) {
-    if (pages.length <= 1) { alert('Impossible de supprimer la dernière page.'); return; }
-    var page = pages.filter(function (p) { return p.id === id; })[0];
-    if (!page || !confirm('Supprimer la page "' + page.title + '" ?')) return;
-    pages = pages.filter(function (p) { return p.id !== id; });
-    if (currentPageId === id) currentPageId = pages[0].id;
-    markDirty();
-    render();
-  };
-
-  window.toggleVisibility = function (id) {
-    var page = pages.filter(function (p) { return p.id === id; })[0];
-    if (!page) return;
-    page.visible = !page.visible;
-    markDirty();
-    render();
-  };
-
-  window.movePage = function (id, dir) {
-    var idx = pages.findIndex(function (p) { return p.id === id; });
-    var newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= pages.length) return;
-    var tmp = pages[idx]; pages[idx] = pages[newIdx]; pages[newIdx] = tmp;
-    markDirty();
-    render();
-  };
-
-  window.updateTitle = function (id, value) {
-    var page = pages.filter(function (p) { return p.id === id; })[0];
-    if (!page) return;
-    page.title = value;
-    var usedSlugs = pages.filter(function (p) { return p.id !== id; }).map(function (p) { return p.slug; });
-    var base = slugify(value), slug = base, n = 2;
-    while (usedSlugs.indexOf(slug) !== -1) { slug = base + '-' + n; n++; }
-    page.slug = slug;
-    if (id === currentPageId) {
-      var h1 = document.querySelector('.content h1');
-      if (h1) h1.textContent = value;
-    }
-    markDirty();
-  };
-
   window.renameSite = function () {
     var val = prompt('Titre du site :', siteTitle);
     if (val && val.trim()) { siteTitle = val.trim(); markDirty(); render(); }
   };
 
-  // ---------- Content editing ----------
-  function getContentEl() { return document.getElementById('page-body'); }
+  // ---------- Draft (composer) ----------
+  window.setDraftType = function (type) {
+    draft.type = type;
+    render();
+  };
 
-  window.onContentChanged = function (el) {
-    el = el || getContentEl();
-    if (!el || !currentPageId) return;
-    var page = pages.filter(function (p) { return p.id === currentPageId; })[0];
-    if (page) page.content = el.innerHTML;
-    markDirty();
+  window.updateDraftField = function (field, value) {
+    draft[field] = value;
+  };
+
+  function getEditorEl() { return document.getElementById('editor'); }
+
+  window.onDraftContentChanged = function (el) {
+    el = el || getEditorEl();
+    if (!el) return;
+    draft.content = el.innerHTML;
   };
 
   function exec(cmd, val) {
-    var el = getContentEl();
+    var el = getEditorEl();
     if (!el) return;
     el.focus();
     document.execCommand(cmd, false, val || null);
-    window.onContentChanged(el);
+    window.onDraftContentChanged(el);
   }
   window.cmdBold = function () { exec('bold'); };
   window.cmdItalic = function () { exec('italic'); };
@@ -344,54 +332,80 @@
   window.cmdH3 = function () { exec('formatBlock', 'H3'); };
   window.cmdQuote = function () { exec('formatBlock', 'BLOCKQUOTE'); };
   window.cmdList = function () { exec('insertUnorderedList'); };
-  window.cmdCaption = function () {
-    exec('formatBlock', 'P');
-    var el = getContentEl();
-    var sel = window.getSelection();
-    if (!sel.rangeCount) return;
-    var node = sel.getRangeAt(0).startContainer;
-    while (node && node.nodeType !== 1) node = node.parentNode;
-    while (node && node !== el && node.tagName !== 'P') node = node.parentNode;
-    if (node && node !== el && el.contains(node)) {
-      node.className = 'caption';
-      window.onContentChanged(el);
-    }
-  };
   window.cmdLinkExternal = function () {
     var url = prompt('Adresse (URL) du lien :', 'https://');
     if (!url) return;
     exec('createLink', url);
   };
 
-  function insertHtmlAtCursor(html) {
-    var sel = window.getSelection();
-    if (!sel.rangeCount) return;
-    var range = sel.getRangeAt(0);
-    range.deleteContents();
-    var wrap = document.createElement('div');
-    wrap.innerHTML = html;
-    var frag = document.createDocumentFragment(), node, last;
-    while ((node = wrap.firstChild)) { last = frag.appendChild(node); }
-    range.insertNode(frag);
-    if (last) { range.setStartAfter(last); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
+  function addToList(list, value) {
+    var v = (value || '').trim();
+    if (!v) return;
+    var exists = list.some(function (x) { return x.toLowerCase() === v.toLowerCase(); });
+    if (!exists) { list.push(v); list.sort(function (a, b) { return a.localeCompare(b); }); }
   }
 
-  window.insertInternalLink = function () {
-    var el = getContentEl();
-    if (!el) return;
-    var sel = window.getSelection();
-    var range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-    var selectedText = sel.toString();
-    var list = pages.map(function (p) { return '- ' + p.title; }).join('\n');
-    var title = prompt('Lien vers quelle page ? Tapez le titre exact.\n\nPages disponibles :\n' + list);
-    if (!title) return;
-    var target = pages.filter(function (p) { return p.title.toLowerCase() === title.trim().toLowerCase(); })[0];
-    if (!target) { alert('Page introuvable.'); return; }
-    el.focus();
-    if (range) { sel.removeAllRanges(); sel.addRange(range); }
-    var label = selectedText || target.title;
-    insertHtmlAtCursor('<a href="#' + target.slug + '" class="internal-link" data-page-id="' + target.id + '">' + escapeHtml(label) + '</a>');
-    window.onContentChanged(el);
+  window.saveDraftPost = function () {
+    draft.category = (draft.category || '').trim();
+    draft.project = (draft.project || '').trim();
+    draft.date = draft.date || todayStr();
+    if (draft.type === 'image' && !draft.src) { alert('Ajoutez une image avant d\'enregistrer.'); return; }
+    if (draft.type === 'text') {
+      var el = getEditorEl();
+      if (el) draft.content = el.innerHTML;
+      var text = el ? el.textContent.trim() : '';
+      if (!text) { alert('Le texte du post est vide.'); return; }
+    }
+
+    addToList(categories, draft.category);
+    addToList(projects, draft.project);
+
+    if (editingPostId) {
+      var post = posts.filter(function (p) { return p.id === editingPostId; })[0];
+      if (post) {
+        post.type = draft.type; post.date = draft.date; post.category = draft.category;
+        post.project = draft.project; post.content = draft.content; post.src = draft.src; post.caption = draft.caption;
+      }
+    } else {
+      posts.push({
+        id: genId(), type: draft.type, date: draft.date, category: draft.category,
+        project: draft.project, content: draft.content, src: draft.src, caption: draft.caption,
+        createdAt: Date.now()
+      });
+    }
+
+    editingPostId = null;
+    draft = blankDraft();
+    markDirty();
+    render();
+  };
+
+  window.editPost = function (id) {
+    var post = posts.filter(function (p) { return p.id === id; })[0];
+    if (!post) return;
+    editingPostId = id;
+    draft = {
+      type: post.type, date: post.date, category: post.category, project: post.project,
+      content: post.content, src: post.src, caption: post.caption
+    };
+    render();
+    var content = document.querySelector('.content');
+    if (content) content.scrollIntoView({ block: 'start' });
+  };
+
+  window.cancelEdit = function () {
+    editingPostId = null;
+    draft = blankDraft();
+    render();
+  };
+
+  window.deletePost = function (id) {
+    var post = posts.filter(function (p) { return p.id === id; })[0];
+    if (!post || !confirm('Supprimer ce post ?')) return;
+    posts = posts.filter(function (p) { return p.id !== id; });
+    if (editingPostId === id) { editingPostId = null; draft = blankDraft(); }
+    markDirty();
+    render();
   };
 
   // ---------- Image upload (stored as files in the repo, not inline base64) ----------
@@ -444,21 +458,13 @@
     setTimeout(function () { img.src = base + '?r=' + Date.now(); }, 4000);
   };
 
-  function insertImageFileAtRange(file, range) {
+  function uploadDraftImageFile(file) {
     if (!/^image\//.test(file.type)) return;
-    var el = getContentEl();
-    if (!el) return;
-    var sel = window.getSelection();
-    el.focus();
-    if (range) { sel.removeAllRanges(); sel.addRange(range); }
     showUploadStatus('Téléversement de l\'image…');
     uploadImageToGithub(file).then(function (path) {
-      el.focus();
-      if (range) { sel.removeAllRanges(); sel.addRange(range); }
-      insertHtmlAtCursor('<img src="' + escapeAttr(path) + '" alt="" onerror="handleImgError(this)">');
-      window.onContentChanged(el);
-      showUploadStatus('Image envoyée — mise en ligne par GitHub Pages (jusqu\'à 1 min)…');
-      setTimeout(function () { showUploadStatus(''); }, 6000);
+      draft.src = path;
+      showUploadStatus('');
+      render();
     }).catch(function (e) {
       console.error(e);
       showUploadStatus('');
@@ -466,84 +472,47 @@
     });
   }
 
-  window.insertImage = function () {
-    var el = getContentEl();
-    if (!el) return;
-    var sel = window.getSelection();
-    var range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+  window.pickDraftImage = function () {
     var input = document.createElement('input');
     input.type = 'file'; input.accept = 'image/*';
     input.onchange = function (e) {
       var file = e.target.files[0];
-      if (file) insertImageFileAtRange(file, range);
+      if (file) uploadDraftImageFile(file);
     };
     input.click();
   };
 
-  window.handleImageDragOver = function (e) {
+  window.handleDraftDragOver = function (e) {
     e.preventDefault();
     e.currentTarget.classList.add('drag-over');
   };
-
-  window.handleImageDragLeave = function (e) {
+  window.handleDraftDragLeave = function (e) {
     e.currentTarget.classList.remove('drag-over');
   };
-
-  window.handleImageDrop = function (e) {
+  window.handleDraftDrop = function (e) {
+    e.preventDefault();
     e.currentTarget.classList.remove('drag-over');
     var files = e.dataTransfer && e.dataTransfer.files ? Array.prototype.slice.call(e.dataTransfer.files) : [];
-    var images = files.filter(function (f) { return /^image\//.test(f.type); });
-    if (!images.length) return;
-    e.preventDefault();
-    var range = null;
-    if (document.caretRangeFromPoint) range = document.caretRangeFromPoint(e.clientX, e.clientY);
-    images.forEach(function (file) { insertImageFileAtRange(file, range); });
+    var image = files.filter(function (f) { return /^image\//.test(f.type); })[0];
+    if (image) uploadDraftImageFile(image);
   };
-
-  window.handleImagePaste = function (e) {
+  window.handleDraftPaste = function (e) {
     var items = e.clipboardData ? e.clipboardData.items : null;
     if (!items) return;
     for (var i = 0; i < items.length; i++) {
       if (items[i].kind === 'file' && /^image\//.test(items[i].type)) {
         e.preventDefault();
-        var file = items[i].getAsFile();
-        var sel = window.getSelection();
-        var range = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
-        insertImageFileAtRange(file, range);
+        uploadDraftImageFile(items[i].getAsFile());
         return;
       }
     }
   };
 
-  window.handleContentClick = function (e) {
-    var link = e.target.closest ? e.target.closest('a.internal-link') : null;
-    if (!link) return;
-    if (e.ctrlKey || e.metaKey) { e.preventDefault(); window.selectPage(link.getAttribute('data-page-id')); }
-    else { e.preventDefault(); }
-  };
-
   // ---------- Render ----------
   function renderSidebar() {
-    var items = pages.map(function (p) {
-      var isCurrent = p.id === currentPageId;
-      return '' +
-        '<div class="nav-edit-item ' + (isCurrent ? 'current' : '') + '" onclick="selectPage(\'' + p.id + '\')">' +
-          '<input type="text" value="' + escapeAttr(p.title) + '" oninput="updateTitle(\'' + p.id + '\', this.value)" onclick="event.stopPropagation()">' +
-          '<div class="nav-edit-controls" onclick="event.stopPropagation()">' +
-            '<label class="visible-label"><input type="checkbox" ' + (p.visible ? 'checked' : '') + ' onchange="toggleVisibility(\'' + p.id + '\')"> Visible</label>' +
-            '<button onclick="movePage(\'' + p.id + '\', -1)" title="Monter">↑</button>' +
-            '<button onclick="movePage(\'' + p.id + '\', 1)" title="Descendre">↓</button>' +
-            '<button onclick="deletePage(\'' + p.id + '\')" title="Supprimer">×</button>' +
-          '</div>' +
-        '</div>';
-    }).join('');
-    if (!items) items = '<p class="muted" style="font-size:13px;">Aucune page.</p>';
-
     return '' +
       '<div class="sidebar">' +
         '<div class="site-title-row"><div class="site-title">' + escapeHtml(siteTitle) + '</div><button class="rename-btn" onclick="renameSite()">renommer</button></div>' +
-        '<nav class="nav-list">' + items + '</nav>' +
-        '<button class="add-page-btn" onclick="addPage()">+ Nouvelle page</button>' +
         '<button id="publish-btn" class="publish-btn" onclick="publishToGithub()" ' + (hasUnsavedChanges ? '' : 'disabled') + '>↑ Publier sur GitHub</button>' +
         '<div class="status" id="status"' + (hasUnsavedChanges ? ' class="status dirty"' : '') + '>' + (hasUnsavedChanges ? 'Modifications non publiées' : 'À jour avec GitHub') + '</div>' +
         '<button class="small-btn" onclick="downloadBackup()">Télécharger une copie</button>' +
@@ -551,40 +520,106 @@
       '</div>';
   }
 
-  function renderContent() {
-    var page = pages.filter(function (p) { return p.id === currentPageId; })[0];
-    if (!page) return '<div class="content"><div class="content-inner"><p class="muted">Sélectionnez ou créez une page.</p></div></div>';
+  function renderComposer() {
+    var catOptions = categories.map(function (c) { return '<option value="' + escapeAttr(c) + '">'; }).join('');
+    var projOptions = projects.map(function (p) { return '<option value="' + escapeAttr(p) + '">'; }).join('');
 
-    var toolbar = '' +
-      '<div class="toolbar">' +
-        '<button onclick="cmdBold()"><b>G</b></button>' +
-        '<button onclick="cmdItalic()"><i>I</i></button>' +
-        '<button onclick="cmdParagraph()">Texte</button>' +
-        '<button onclick="cmdH2()">Titre 2</button>' +
-        '<button onclick="cmdH3()">Titre 3</button>' +
-        '<button onclick="cmdQuote()">Citation</button>' +
-        '<button onclick="cmdCaption()">Légende</button>' +
-        '<button onclick="cmdList()">Liste</button>' +
-        '<button onclick="cmdLinkExternal()">Lien externe</button>' +
-        '<button onclick="insertInternalLink()">Lien interne</button>' +
-        '<button onclick="insertImage()">Image</button>' +
-      '</div>';
+    var fields = '' +
+      '<div class="fields-row">' +
+        '<div class="field"><label>Date</label><input type="date" value="' + escapeAttr(draft.date) + '" oninput="updateDraftField(\'date\', this.value)"></div>' +
+        '<div class="field"><label>Catégorie</label><input type="text" list="category-options" value="' + escapeAttr(draft.category) + '" oninput="updateDraftField(\'category\', this.value)"></div>' +
+        '<div class="field"><label>Projet</label><input type="text" list="project-options" value="' + escapeAttr(draft.project) + '" oninput="updateDraftField(\'project\', this.value)"></div>' +
+      '</div>' +
+      '<datalist id="category-options">' + catOptions + '</datalist>' +
+      '<datalist id="project-options">' + projOptions + '</datalist>';
+
+    var body;
+    if (draft.type === 'text') {
+      body = '' +
+        '<div class="toolbar">' +
+          '<button onclick="cmdBold()"><b>G</b></button>' +
+          '<button onclick="cmdItalic()"><i>I</i></button>' +
+          '<button onclick="cmdParagraph()">Texte</button>' +
+          '<button onclick="cmdH2()">Titre 2</button>' +
+          '<button onclick="cmdH3()">Titre 3</button>' +
+          '<button onclick="cmdQuote()">Citation</button>' +
+          '<button onclick="cmdList()">Liste</button>' +
+          '<button onclick="cmdLinkExternal()">Lien externe</button>' +
+        '</div>' +
+        '<div id="editor" class="editor" contenteditable="true" oninput="onDraftContentChanged(this)">' + draft.content + '</div>';
+    } else {
+      body = '<p class="upload-status" id="upload-status"></p>';
+      if (draft.src) {
+        body += '' +
+          '<div class="image-preview">' +
+            '<img src="' + escapeAttr(draft.src) + '" alt="" onerror="handleImgError(this)">' +
+            '<button class="small-btn" onclick="pickDraftImage()">Remplacer l\'image</button>' +
+          '</div>';
+      } else {
+        body += '' +
+          '<div class="drop-zone" tabindex="0" onclick="pickDraftImage()" ' +
+            'ondragover="handleDraftDragOver(event)" ondragleave="handleDraftDragLeave(event)" ' +
+            'ondrop="handleDraftDrop(event)" onpaste="handleDraftPaste(event)">' +
+            'Cliquer, glisser-déposer ou coller une image' +
+          '</div>';
+      }
+      body += '<div class="field" style="margin-top:16px;"><label>Légende (facultatif)</label><input type="text" value="' + escapeAttr(draft.caption) + '" oninput="updateDraftField(\'caption\', this.value)"></div>';
+    }
 
     return '' +
-      '<div class="content"><div class="content-inner">' +
-        '<h1>' + escapeHtml(page.title) + '</h1>' +
-        toolbar +
-        '<p class="upload-status" id="upload-status"></p>' +
-        '<div id="page-body" class="page-body" contenteditable="true" ' +
-          'oninput="onContentChanged(this)" onclick="handleContentClick(event)" ' +
-          'ondragover="handleImageDragOver(event)" ondragleave="handleImageDragLeave(event)" ' +
-          'ondrop="handleImageDrop(event)" onpaste="handleImagePaste(event)">' + page.content + '</div>' +
-      '</div></div>';
+      '<h1>' + (editingPostId ? 'Modifier le post' : 'Nouveau post') + '</h1>' +
+      '<div class="type-toggle">' +
+        '<button class="' + (draft.type === 'text' ? 'active' : '') + '" onclick="setDraftType(\'text\')">Texte</button>' +
+        '<button class="' + (draft.type === 'image' ? 'active' : '') + '" onclick="setDraftType(\'image\')">Image</button>' +
+      '</div>' +
+      fields +
+      body +
+      '<div class="composer-actions">' +
+        '<button onclick="saveDraftPost()">' + (editingPostId ? 'Enregistrer' : 'Ajouter le post') + '</button>' +
+        (editingPostId ? '<button onclick="cancelEdit()">Annuler</button>' : '') +
+      '</div>';
+  }
+
+  function stripHtml(html) {
+    var d = document.createElement('div');
+    d.innerHTML = html || '';
+    return (d.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function renderPostList() {
+    var sorted = posts.slice().sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+
+    var rows = sorted.map(function (p) {
+      var meta = [p.date, p.category, p.project].filter(Boolean).join(' · ');
+      var thumb = p.type === 'image' && p.src
+        ? '<img class="thumb" src="' + escapeAttr(p.src) + '" alt="" onerror="handleImgError(this)">'
+        : '<div class="thumb-placeholder"></div>';
+      var snippet = p.type === 'image' ? escapeHtml(p.caption || '') : escapeHtml(stripHtml(p.content));
+      return '' +
+        '<div class="post-row">' +
+          thumb +
+          '<div class="row-body">' +
+            '<div class="row-meta">' + escapeHtml(meta) + '</div>' +
+            '<div class="row-snippet">' + snippet + '</div>' +
+          '</div>' +
+          '<div class="row-actions">' +
+            '<button onclick="editPost(\'' + p.id + '\')">Modifier</button>' +
+            '<button onclick="deletePost(\'' + p.id + '\')">Supprimer</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="post-list">' + (rows || '<p class="muted">Aucun post.</p>') + '</div>';
   }
 
   function render() {
     document.title = 'Backoffice — ' + siteTitle;
-    document.getElementById('app').innerHTML = renderSidebar() + renderContent();
+    document.getElementById('app').innerHTML =
+      renderSidebar() +
+      '<div class="content"><div class="content-inner">' + renderComposer() + renderPostList() + '</div></div>';
   }
 
   function showGate(message) {
@@ -597,7 +632,7 @@
     if (!config) { showGate('Backoffice non configuré. Renseignez votre dépôt GitHub pour commencer.'); return; }
     document.getElementById('app').innerHTML = '<div class="loading-screen">Chargement du site depuis GitHub…</div>';
     loadSiteFromGithub().then(function () {
-      currentPageId = pages[0] ? pages[0].id : null;
+      draft = blankDraft();
       document.getElementById('app').classList.remove('app-loading');
       render();
     }).catch(function (e) {
