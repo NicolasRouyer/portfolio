@@ -21,11 +21,6 @@
     gap: 56px 40px; align-items: start;
     padding: 0 48px 80px;
   }
-  .card { }
-  .card .meta {
-    font-family: Arial, Helvetica, sans-serif; font-size: 1em; font-weight: 400;
-    text-transform: uppercase; margin: 0 0 10px 0;
-  }
   .card img { width: 100%; height: auto; display: block; }
   .card .caption { font-family: Arial, Helvetica, sans-serif; font-size: 13px; margin: 8px 0 0 0; }
 
@@ -77,12 +72,6 @@
     setTimeout(function () { img.src = base + '?r=' + Date.now(); }, 4000);
   };
 
-  function fmtDate(iso) {
-    var d = new Date(iso + 'T00:00:00');
-    if (isNaN(d.getTime())) return iso || '';
-    return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-  }
-
   function sortedPosts() {
     return (siteData.posts || []).slice().sort(function (a, b) {
       if (a.date !== b.date) return a.date < b.date ? 1 : -1;
@@ -90,21 +79,14 @@
     });
   }
 
-  function renderMeta(post) {
-    var parts = [fmtDate(post.date)];
-    if (post.category) parts.push(post.category);
-    if (post.project) parts.push(post.project);
-    return '<div class="meta">' + parts.map(escapeHtml).join(' · ') + '</div>';
-  }
-
   function renderCard(post) {
     if (post.type === 'image') {
-      return '<article class="card">' + renderMeta(post) +
+      return '<article class="card">' +
         '<img src="' + escapeAttr(post.src) + '" alt="" onerror="handleImgError(this)">' +
         (post.caption ? '<p class="caption">' + escapeHtml(post.caption) + '</p>' : '') +
         '</article>';
     }
-    return '<article class="card">' + renderMeta(post) +
+    return '<article class="card">' +
       '<div class="text-content">' + (post.content || '') + '</div>' +
       '</article>';
   }

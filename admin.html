@@ -302,7 +302,17 @@
 
   // ---------- Draft (composer) ----------
   window.setDraftType = function (type) {
+    if (draft.type === type) return;
+    var hasContent = draft.type === 'text'
+      ? stripHtml(draft.content).length > 0
+      : !!draft.src;
+    if (hasContent && !confirm('Changer de type effacera le contenu en cours de saisie. Continuer ?')) return;
     draft.type = type;
+    // Switching type discards the other type's in-progress content, so a
+    // half-written text draft can't silently get attached to an image post.
+    draft.content = '<p><br></p>';
+    draft.src = null;
+    draft.caption = '';
     render();
   };
 

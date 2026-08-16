@@ -15,10 +15,21 @@
       "date": "2023-11-16",
       "category": "Construction",
       "project": "Atelier",
-      "content": "<p>Création d'une platforme de gestion muséale&nbsp;</p>",
+      "content": "",
       "src": "images/msvhu3dnwemojv.jpg",
       "caption": "",
       "createdAt": 1786865884045
+    },
+    {
+      "id": "b3a2f8c1-6e51-4b7a-9d3e-2f6a8c1d4e70",
+      "type": "text",
+      "date": "2023-11-16",
+      "category": "Construction",
+      "project": "Atelier",
+      "content": "<p>Création d'une platforme de gestion muséale&nbsp;</p>",
+      "src": null,
+      "caption": "",
+      "createdAt": 1786865884044
     }
   ]
 }
