@@ -110,22 +110,76 @@
     return '<div class="card spacer" style="grid-column: span ' + span + '; height: ' + height + 'px;" aria-hidden="true"></div>';
   }
 
-  // ---- Masonry packing (CSS Grid "row-span hack") ----
-  // grid-auto-rows is a 1px unit; each card's rendered height is measured
-  // and converted into a row-span so cards pack without overlapping, the
-  // same way Pinterest lays out variable-height tiles.
+  // ---- Masonry packing (CSS Grid "row-span hack", explicit columns) ----
+  // Rather than letting the grid auto-place cards (which gives no control
+  // over which column a card lands in), we compute each card's column
+  // ourselves — shortest column first, like Pinterest — so we can also
+  // enforce a rule CSS auto-placement can't express: a text card is never
+  // routed on top of another text card in the same column.
   function layoutMasonry() {
     var feed = document.querySelector('.feed');
     if (!feed) return;
     var styles = getComputedStyle(feed);
-    var rowHeight = parseFloat(styles.getPropertyValue('grid-auto-rows')) || 1;
-    var rowGap = parseFloat(styles.getPropertyValue('row-gap') || styles.getPropertyValue('gap')) || 0;
-    var cards = feed.querySelectorAll('.card');
-    cards.forEach(function (card) { card.style.gridRowEnd = ''; });
-    cards.forEach(function (card) {
-      var height = card.getBoundingClientRect().height;
-      var span = Math.ceil((height + rowGap) / (rowHeight + rowGap));
-      card.style.gridRowEnd = 'span ' + span;
+    var rowUnit = parseFloat(styles.getPropertyValue('grid-auto-rows')) || 1;
+    var gap = parseFloat(styles.getPropertyValue('column-gap') || styles.getPropertyValue('gap')) || 0;
+    var containerWidth = feed.clientWidth;
+    var colTarget = 240; // keep in sync with grid-template-columns minmax()
+    var colCount = Math.max(1, Math.floor((containerWidth + gap) / (colTarget + gap)));
+
+    var cards = Array.prototype.slice.call(feed.children);
+
+    // Pass 1: reset explicit placement and measure each card's natural
+    // height — width is already correct at this point (span comes from
+    // its CSS class), only the row position is still auto so far.
+    cards.forEach(function (card) { card.style.gridColumn = ''; card.style.gridRow = ''; });
+    var heights = cards.map(function (card) { return card.getBoundingClientRect().height; });
+
+    // Pass 2: assign each card to explicit columns.
+    var colHeights = new Array(colCount).fill(0);
+    var colLastType = new Array(colCount).fill(null);
+
+    cards.forEach(function (card, i) {
+      var isText = card.classList.contains('text');
+      var isFull = card.classList.contains('full');
+      var wantsWide = isText || card.classList.contains('img-large');
+      var span = isFull ? colCount : Math.min(wantsWide ? 2 : 1, colCount);
+      var height = heights[i];
+
+      var start, stillBlocked = false;
+      if (span >= colCount) {
+        start = 0;
+      } else if (span === 1) {
+        start = colHeights.indexOf(Math.min.apply(null, colHeights));
+      } else {
+        var bestStart = 0, bestScore = Infinity, bestBlocked = false;
+        for (var s = 0; s + span <= colCount; s++) {
+          var segment = colHeights.slice(s, s + span);
+          var segMax = Math.max.apply(null, segment);
+          var blocked = isText && colLastType.slice(s, s + span).indexOf('text') !== -1;
+          var score = segMax + (blocked ? 1e9 : 0);
+          if (score < bestScore) { bestScore = score; bestStart = s; bestBlocked = blocked; }
+        }
+        start = bestStart;
+        stillBlocked = bestBlocked; // every pair had a text neighbour — rare, but possible
+      }
+
+      var top = 0;
+      for (var k = start; k < start + span; k++) top = Math.max(top, colHeights[k]);
+      // Even in that rare case, don't let it read as one continuous block —
+      // force a visible break instead of just the normal grid gap.
+      if (stillBlocked) top += 50 + Math.floor(Math.random() * 80);
+
+      var rowStart = Math.round(top / (rowUnit + gap)) + 1;
+      var rowSpan = Math.ceil((height + gap) / (rowUnit + gap));
+      card.style.gridColumn = (start + 1) + ' / span ' + span;
+      card.style.gridRow = rowStart + ' / span ' + rowSpan;
+
+      var newHeight = top + height + gap;
+      var type = isText ? 'text' : (card.classList.contains('spacer') ? null : 'other');
+      for (var k2 = start; k2 < start + span; k2++) {
+        colHeights[k2] = newHeight;
+        colLastType[k2] = type;
+      }
     });
   }
 
@@ -150,15 +204,12 @@
     document.title = siteData.siteTitle || 'Mon site';
     var posts = sortedPosts();
     // Re-rolled every load, so how sparse or busy the blank blocks feel
-    // varies from one visit to the next.
+    // varies from one visit to the next. Keeping two text posts apart is
+    // now handled by layoutMasonry's column routing, not by forcing a gap
+    // here (which couldn't guarantee they'd land in the same column anyway).
     var spacerChance = 0.15 + Math.random() * 0.35;
-    var prevType = null;
     var cards = posts.map(function (post) {
-      // Two text posts back to back would blend into one big yellow block,
-      // so always break them up — everywhere else the spacer stays a chance.
-      var forced = post.type === 'text' && prevType === 'text';
-      var spacer = (forced || Math.random() < spacerChance) ? renderSpacer() : '';
-      prevType = post.type;
+      var spacer = Math.random() < spacerChance ? renderSpacer() : '';
       return spacer + renderCard(post);
     }).join('');
 
