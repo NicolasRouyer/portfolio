@@ -1,20 +1,22 @@
 {
   "siteTitle": "Nicolas Rouyer",
   "categories": [
+    "Construction",
     "Développement"
   ],
   "projects": [
+    "Atelier",
     "ERP muséal"
   ],
   "posts": [
     {
       "id": "ace14913-f053-497f-9704-be8807e41d29",
-      "type": "text",
+      "type": "image",
       "date": "2023-11-16",
-      "category": "Développement",
-      "project": "ERP muséal",
+      "category": "Construction",
+      "project": "Atelier",
       "content": "<p>Création d'une platforme de gestion muséale&nbsp;</p>",
-      "src": null,
+      "src": "images/msvhu3dnwemojv.jpg",
       "caption": "",
       "createdAt": 1786865884045
     }
