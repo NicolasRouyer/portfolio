@@ -23,7 +23,7 @@
   .card img { width: auto; max-width: 100%; height: auto; max-height: 65vh; display: block; }
   .card .caption { margin: 8px 0 0 0; }
   .card.full { grid-column: 1 / -1; margin-left: calc(-1 * var(--feed-pad)); margin-right: calc(-1 * var(--feed-pad)); }
-  .card.full img { max-width: none; width: 100%; }
+  .card.full img { max-width: none; width: 100%; max-height: none; }
   .card.spacer { visibility: hidden; }
 
   .text-content { max-width: 34em; }
@@ -115,7 +115,7 @@
   }
 
   function renderSpacer() {
-    var span = 1 + Math.floor(Math.random() * 3);
+    var span = 1 + Math.floor(Math.random() * 5);
     return '<div class="card spacer" style="grid-column: span ' + span + ';" aria-hidden="true"></div>';
   }
 
@@ -123,14 +123,21 @@
     document.title = siteData.siteTitle || 'Mon site';
     var posts = sortedPosts();
     var prevDate = null;
+    // Re-rolled on every page load, so how sparse or busy the blank columns
+    // feel is itself unpredictable rather than a fixed rate every time.
+    var spacerChance = 0.15 + Math.random() * 0.55;
     var cards = posts.map(function (post) {
       // Extra breathing room whenever we cross into a different date, so
       // the whitespace has some rhythm instead of being purely random.
       var extra = (prevDate !== null && post.date !== prevDate) ? 60 + Math.floor(Math.random() * 60) : 0;
       prevDate = post.date;
-      // Occasionally lead with an empty column so rows don't always start
-      // flush with a post — a bit of extra life in the layout.
-      var spacer = Math.random() < 0.25 ? renderSpacer() : '';
+      // Occasionally lead with one or two empty columns so rows don't
+      // always start flush with a post — a bit of extra life in the layout.
+      var spacer = '';
+      if (Math.random() < spacerChance) {
+        spacer += renderSpacer();
+        if (Math.random() < 0.2) spacer += renderSpacer();
+      }
       return spacer + renderCard(post, extra);
     }).join('');
 
