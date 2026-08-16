@@ -15,18 +15,14 @@
 
   :root { --feed-pad: 48px; --feed-gap: 16px; }
 
-  /* Masonry: auto-fill computes the column count live from the available
-     width (like Pinterest resizing), every track is the same fixed width,
-     and each card's row-span is measured in JS so heights pack tightly
-     without any manual breakpoints. */
-  .feed {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    grid-auto-rows: 1px; gap: var(--feed-gap); align-items: start;
-    padding: 0 var(--feed-pad) 80px;
-  }
-  .card.text { grid-column: span 2; background: #f2e6b8; padding: 20px; border-radius: 2px; }
-  .card.img-large { grid-column: span 2; }
-  .card.full { grid-column: 1 / -1; margin-left: calc(-1 * var(--feed-pad)); margin-right: calc(-1 * var(--feed-pad)); }
+  /* Masonry: every card is positioned with an exact pixel top/left computed
+     in JS (no CSS-grid row rounding), so the gap between any two touching
+     cards — horizontal or vertical — is always exactly --feed-gap. Column
+     count is recomputed from the container width on load and on resize,
+     the same way Pinterest reflows. */
+  .feed { position: relative; padding: 0 var(--feed-pad); }
+  .card { position: absolute; }
+  .card.text { padding: 20px; border-radius: 2px; }
   .card.spacer { visibility: hidden; }
   .card img { width: 100%; height: auto; display: block; border-radius: 2px; }
   .card .caption { margin: 8px 0 0 0; }
@@ -38,17 +34,16 @@
   .text-content blockquote { font-weight: 400; margin: 38px 0 22px 0; padding: 0; }
   .text-content ul, .text-content ol { margin: 0 0 18px 0; padding-left: 22px; }
   .text-content > *:first-child { margin-top: 0; }
+  .text-content > *:last-child { margin-bottom: 0; }
 
   .muted { font-style: normal; padding: 0 48px; }
 
   @media (max-width: 900px) {
     :root { --feed-pad: 28px; }
-    .feed { padding: 0 var(--feed-pad) 56px; }
     .site-header { padding: 40px 28px 32px; }
   }
   @media (max-width: 560px) {
     :root { --feed-pad: 20px; }
-    .feed { padding: 0 var(--feed-pad) 40px; }
     .site-header { padding: 32px 20px 24px; }
     .muted { padding: 0 20px; }
   }
@@ -103,46 +98,58 @@
   }
 
   // Blank, column-aligned filler blocks — re-rolled on every page load so
-  // the layout never packs identically twice, without breaking the grid.
+  // the layout never packs identically twice.
   function renderSpacer() {
     var span = Math.random() < 0.25 ? 2 : 1;
     var height = 60 + Math.floor(Math.random() * 220);
-    return '<div class="card spacer" style="grid-column: span ' + span + '; height: ' + height + 'px;" aria-hidden="true"></div>';
+    return '<div class="card spacer" data-span="' + span + '" style="height: ' + height + 'px;" aria-hidden="true"></div>';
   }
 
-  // ---- Masonry packing (CSS Grid "row-span hack", explicit columns) ----
-  // Rather than letting the grid auto-place cards (which gives no control
-  // over which column a card lands in), we compute each card's column
-  // ourselves — shortest column first, like Pinterest — so we can also
-  // enforce a rule CSS auto-placement can't express: a text card is never
-  // routed on top of another text card in the same column.
+  // ---- Masonry packing (exact pixel positioning, no rounding) ----
+  // Each card gets a precise top/left in JS — column choice follows the
+  // same rules as before (shortest column, wide cards prefer an already
+  // level pair, text never lands directly on top of text) — only the
+  // actual placement math changed, from a rounded CSS-grid row hack to
+  // exact pixels, so the gap between any two cards is always --feed-gap.
   function layoutMasonry() {
     var feed = document.querySelector('.feed');
     if (!feed) return;
     var styles = getComputedStyle(feed);
-    var rowUnit = parseFloat(styles.getPropertyValue('grid-auto-rows')) || 1;
-    var gap = parseFloat(styles.getPropertyValue('column-gap') || styles.getPropertyValue('gap')) || 0;
-    var containerWidth = feed.clientWidth;
-    var colTarget = 240; // keep in sync with grid-template-columns minmax()
+    var gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--feed-gap')) || 16;
+    var feedPad = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--feed-pad')) || 0;
+    var outerWidth = feed.clientWidth; // includes left/right padding
+    var containerWidth = outerWidth - feedPad * 2;
+    var colTarget = 240;
     var colCount = Math.max(1, Math.floor((containerWidth + gap) / (colTarget + gap)));
+    var colWidth = (containerWidth - gap * (colCount - 1)) / colCount;
 
     var cards = Array.prototype.slice.call(feed.children);
 
-    // Pass 1: reset explicit placement and measure each card's natural
-    // height — width is already correct at this point (span comes from
-    // its CSS class), only the row position is still auto so far.
-    cards.forEach(function (card) { card.style.gridColumn = ''; card.style.gridRow = ''; });
+    var spans = cards.map(function (card) {
+      var isFull = card.classList.contains('full');
+      if (isFull) return colCount;
+      var wantsWide = card.classList.contains('text') || card.classList.contains('img-large')
+        || card.getAttribute('data-span') === '2';
+      return Math.min(wantsWide ? 2 : 1, colCount);
+    });
+
+    // Pass 1: set each card's exact width so its natural height (text
+    // wrap, image aspect ratio) measures correctly.
+    cards.forEach(function (card, i) {
+      var isFull = card.classList.contains('full');
+      var w = isFull ? outerWidth : spans[i] * colWidth + (spans[i] - 1) * gap;
+      card.style.width = w + 'px';
+    });
     var heights = cards.map(function (card) { return card.getBoundingClientRect().height; });
 
-    // Pass 2: assign each card to explicit columns.
+    // Pass 2: assign each card to explicit columns + an exact pixel top.
     var colHeights = new Array(colCount).fill(0);
     var colLastType = new Array(colCount).fill(null);
 
     cards.forEach(function (card, i) {
       var isText = card.classList.contains('text');
       var isFull = card.classList.contains('full');
-      var wantsWide = isText || card.classList.contains('img-large');
-      var span = isFull ? colCount : Math.min(wantsWide ? 2 : 1, colCount);
+      var span = spans[i];
       var height = heights[i];
 
       var start, stillBlocked = false;
@@ -175,13 +182,12 @@
       var top = 0;
       for (var k = start; k < start + span; k++) top = Math.max(top, colHeights[k]);
       // Even in that rare case, don't let it read as one continuous block —
-      // force a visible break instead of just the normal grid gap.
+      // force a visible break instead of just the normal gap.
       if (stillBlocked) top += 50 + Math.floor(Math.random() * 80);
 
-      var rowStart = Math.round(top / (rowUnit + gap)) + 1;
-      var rowSpan = Math.ceil((height + gap) / (rowUnit + gap));
-      card.style.gridColumn = (start + 1) + ' / span ' + span;
-      card.style.gridRow = rowStart + ' / span ' + rowSpan;
+      var left = isFull ? 0 : feedPad + start * (colWidth + gap);
+      card.style.left = left + 'px';
+      card.style.top = top + 'px';
 
       var newHeight = top + height + gap;
       var type = isText ? 'text' : (card.classList.contains('spacer') ? null : 'other');
@@ -190,6 +196,9 @@
         colLastType[k2] = type;
       }
     });
+
+    var maxHeight = Math.max.apply(null, colHeights.concat([0]));
+    feed.style.height = (maxHeight + 64) + 'px';
   }
 
   function waitForImages(container) {
@@ -214,8 +223,7 @@
     var posts = sortedPosts();
     // Re-rolled every load, so how sparse or busy the blank blocks feel
     // varies from one visit to the next. Keeping two text posts apart is
-    // now handled by layoutMasonry's column routing, not by forcing a gap
-    // here (which couldn't guarantee they'd land in the same column anyway).
+    // handled by layoutMasonry's column routing.
     var spacerChance = 0.15 + Math.random() * 0.35;
     var cards = posts.map(function (post) {
       var spacer = Math.random() < spacerChance ? renderSpacer() : '';
