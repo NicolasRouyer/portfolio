@@ -27,7 +27,12 @@
   .card img { width: 100%; height: auto; display: block; border-radius: 2px; }
   .card .caption { margin: 8px 0 0 0; }
 
-  .text-content { max-width: 34em; }
+  /* Left-aligned text has zero natural slack on its left — every line
+     already starts flush at the block's edge, so there's nothing to give
+     back for a leftward drift. This padding reserves genuine, equal room
+     on both sides; drift is clamped to it so a line can visually return to
+     the true edge but never past it. */
+  .text-content { max-width: 34em; padding: 0 10%; }
   .text-content p { margin: 0 0 18px 0; }
   .text-content h2 { font-size: 1em; font-weight: 400; margin: 50px 0 14px 0; }
   .text-content h3 { font-size: 1em; font-weight: 400; margin: 30px 0 10px 0; }
@@ -37,14 +42,15 @@
   .text-content > *:last-child { margin-bottom: 0; }
   .text-content i, .text-content em { font-family: 'Times New Roman', Times, serif; font-style: italic; }
 
-  /* "Accidents": bold is never rendered bold — a single bold word gets its
-     letters individually offset (and the whole word pushed if it sits at a
-     line edge or on the paragraph's first/last line); a bold phrase has
-     each of its real rendered lines independently tilted and drifted. */
+  /* "Accidents": every real rendered line of every paragraph/list item
+     drifts a little horizontally from the one before it. Bold is never
+     rendered bold — a single bold word has its letters individually
+     offset; a bold phrase tilts slightly within whatever line it landed
+     on (line-splitting already happened at the paragraph level above). */
+  .line-drift { display: block; width: fit-content; }
   .accident-word { display: inline-block; white-space: nowrap; font-weight: 400; }
   .glyph { display: inline-block; }
   .accident-text { display: inline-block; font-weight: 400; }
-  .accident-line { display: inline-block; transform-origin: left center; }
 
   .muted { font-style: normal; padding: 0 48px; }
 
@@ -133,93 +139,137 @@
 
   // ---- Bold/italic "accidents" ----
   // A <b> is never rendered bold. A single bold word has its letters
-  // individually offset, and drifts further if it sits at a line edge or on
-  // the paragraph's first/last line. A multi-word bold phrase has each of
-  // its real rendered lines (as the browser actually wrapped them at this
-  // card's width) independently tilted and drifted. Re-derived from the
-  // pristine HTML every time layoutMasonry runs, since a resize can change
-  // where lines break.
+  // individually offset. A multi-word bold phrase tilts slightly within
+  // whatever line it landed on. Every real rendered line of every paragraph
+  // and list item — bold or not — also drifts a little horizontally from
+  // the line before it. Re-derived from the pristine HTML every time
+  // layoutMasonry runs, since a resize can change where lines break.
   var textOriginals = new WeakMap();
   function rand(min, max) { return Math.random() * (max - min) + min; }
 
-  function getLineRects(el) {
-    var range = document.createRange();
-    range.selectNodeContents(el);
-    return Array.prototype.slice.call(range.getClientRects());
+  // caretRangeFromPoint is WebKit/Blink only; Firefox has the differently
+  // shaped caretPositionFromPoint. Without this fallback the whole effect
+  // silently no-ops on Firefox.
+  function caretPositionAt(x, y) {
+    if (document.caretRangeFromPoint) {
+      var r = document.caretRangeFromPoint(x, y);
+      return r ? { node: r.startContainer, offset: r.startOffset } : null;
+    }
+    if (document.caretPositionFromPoint) {
+      var p = document.caretPositionFromPoint(x, y);
+      return p ? { node: p.offsetNode, offset: p.offset } : null;
+    }
+    return null;
   }
 
-  // Splits an element's plain text into the substrings that land on each
-  // rendered visual line. Asks the browser directly where the caret would
-  // land at the start of each line's rect (caretRangeFromPoint) instead of
-  // growing a Range char-by-char, which was fragile right at word-wrap
-  // spaces and could strand a stray letter on its own line.
-  function splitIntoVisualLines(el) {
-    var text = el.textContent;
-    el.textContent = '';
-    var textNode = document.createTextNode(text);
-    el.appendChild(textNode);
-    var range = document.createRange();
-    range.selectNodeContents(el);
-    var lineRects = Array.prototype.slice.call(range.getClientRects());
-    if (lineRects.length <= 1) return [text];
+  // Whole-block line splitting, preserving inner markup. Finds the DOM
+  // boundary (a collapsed Range) at the very start of each rendered visual
+  // line, then slices the block into one Range per line. Each Range can
+  // span multiple nodes/elements (e.g. half a <b>), and extractContents()
+  // on it correctly splits that markup at the boundary — this is what lets
+  // a <b> phrase that wraps mid-word still render correctly split across
+  // two line wrappers.
+  function getLineBoundaries(block) {
+    var probe = document.createRange();
+    probe.selectNodeContents(block);
+    var rawRects = Array.prototype.slice.call(probe.getClientRects());
+    if (rawRects.length === 0) return null;
 
-    if (!document.caretRangeFromPoint) {
-      // No reliable per-line splitting available on this browser — better
-      // to leave the phrase as a single tilted block than risk mis-slicing it.
-      return [text];
-    }
-
-    var offsets = [0];
-    for (var i = 1; i < lineRects.length; i++) {
-      var rect = lineRects[i];
-      var caret = document.caretRangeFromPoint(Math.ceil(rect.left) + 1, rect.top + rect.height / 2);
-      var offset = (caret && caret.startContainer === textNode) ? caret.startOffset : offsets[offsets.length - 1];
-      offsets.push(Math.max(offset, offsets[offsets.length - 1]));
-    }
-    offsets.push(text.length);
-
+    // getClientRects() can report more than one rect for the SAME visual
+    // line whenever the range crosses a style boundary (e.g. into a <b>) —
+    // AND those rects are not guaranteed to arrive in reading order once a
+    // wrapped <b> is involved (duplicate-looking, out-of-sequence rects
+    // show up in practice). Sort by vertical position first, then cluster
+    // by proximity — bold text's line box can sit a couple pixels off from
+    // the regular text around it, so the tolerance is a fraction of the
+    // real line height rather than a fixed couple of pixels.
+    var lineHeight = parseFloat(getComputedStyle(block).lineHeight) || 20;
+    var tolerance = lineHeight * 0.4;
+    var sortedRects = rawRects.slice().sort(function (a, b) { return a.top - b.top; });
     var lines = [];
-    for (var j = 0; j < lineRects.length; j++) {
-      lines.push(text.slice(offsets[j], offsets[j + 1]).replace(/^ +/, ''));
+    sortedRects.forEach(function (r) {
+      var last = lines[lines.length - 1];
+      if (last && Math.abs(r.top - last.top) < tolerance) {
+        last.left = Math.min(last.left, r.left);
+        return;
+      }
+      lines.push({ top: r.top, left: r.left, height: r.height });
+    });
+    if (lines.length <= 1) return null;
+
+    var boundaries = [{ node: block, offset: 0 }];
+    for (var i = 1; i < lines.length; i++) {
+      var line = lines[i];
+      var caret = caretPositionAt(Math.ceil(line.left) + 1, line.top + line.height / 2);
+      // At this point in layoutMasonry, cards only have a width set — not
+      // yet their final top/left — so several unrelated cards can briefly
+      // occupy the same screen coordinates. caretRangeFromPoint hit-tests
+      // the whole page, not just this block, so it can return a node that
+      // belongs to a DIFFERENT card entirely; accepting it would let
+      // extractContents() rip content out of that other card. Bail out
+      // (leave this block untouched) unless the hit actually landed inside
+      // the block we're splitting.
+      if (!caret || !block.contains(caret.node)) return null;
+      boundaries.push(caret);
     }
-    return lines;
+    boundaries.push({ node: block, offset: block.childNodes.length });
+    return boundaries;
   }
 
-  function processTextBold(el) {
-    var lines = splitIntoVisualLines(el);
-    el.textContent = '';
-    el.classList.add('accident-text');
-    var blockTx = rand(-10, 10), blockTy = rand(-4, 4);
-    el.style.transform = 'translate(' + blockTx.toFixed(1) + 'px,' + blockTy.toFixed(1) + 'px)';
-    lines.forEach(function (lineText, i) {
+  function splitBlockIntoLines(block) {
+    var boundaries = getLineBoundaries(block);
+    if (!boundaries) return false;
+
+    var ranges = [];
+    for (var i = 0; i < boundaries.length - 1; i++) {
+      var r = document.createRange();
+      r.setStart(boundaries[i].node, boundaries[i].offset);
+      r.setEnd(boundaries[i + 1].node, boundaries[i + 1].offset);
+      ranges.push(r);
+    }
+
+    // Extract from the last line backwards so earlier ranges' node
+    // references are never invalidated by a later extraction.
+    for (var j = ranges.length - 1; j >= 0; j--) {
+      var frag = ranges[j].extractContents();
       var span = document.createElement('span');
-      span.className = 'accident-line';
-      span.textContent = lineText;
-      var rot = rand(-3, 3), tx = rand(-10, 10);
-      span.style.transform = 'rotate(' + rot.toFixed(2) + 'deg) translateX(' + tx.toFixed(1) + 'px)';
-      el.appendChild(span);
-      if (i < lines.length - 1) el.appendChild(document.createElement('br'));
+      span.className = 'line-drift';
+      span.appendChild(frag);
+      ranges[j].insertNode(span);
+    }
+    // A line boundary landing exactly at a <b>/<i> edge can leave an empty
+    // clone of it stranded between two line spans — inert, but tidy it up.
+    Array.prototype.slice.call(block.querySelectorAll('b, i, strong, em')).forEach(function (el) {
+      if (!el.textContent) el.remove();
+    });
+    return true;
+  }
+
+  function applyDrift(block, canvas, maxPercent) {
+    var lines = Array.prototype.slice.call(block.querySelectorAll(':scope > .line-drift'));
+    if (!lines.length) return;
+    // Left-aligned lines always start flush at the block's own left edge,
+    // so clamping against the block itself gives zero leftward room by
+    // construction. Clamp against the wider canvas (text-content, padded
+    // on both sides) instead — that padding is exactly the "how far can a
+    // line drift" budget, symmetric in both directions.
+    var canvasRect = canvas.getBoundingClientRect();
+    var refWidth = canvasRect.width;
+    var maxStep = refWidth * maxPercent;
+    var offset = 0;
+    lines.forEach(function (line) {
+      var lineRect = line.getBoundingClientRect();
+      var slackRight = canvasRect.right - lineRect.right;
+      var slackLeft = lineRect.left - canvasRect.left;
+      var proposed = offset + rand(-maxStep, maxStep);
+      proposed = Math.max(-slackLeft, Math.min(slackRight, proposed));
+      offset = proposed;
+      line.style.transform = 'translateX(' + offset.toFixed(1) + 'px)';
     });
   }
 
-  function processWordBold(el, paragraphEl) {
+  function processWordBold(el) {
     var word = el.textContent;
-    var pRects = getLineRects(paragraphEl);
-    var wRects = getLineRects(el);
-    var wRect = wRects[0];
-    if (!wRect || !pRects.length) return;
-
-    var lineIndex = 0, best = Infinity;
-    pRects.forEach(function (r, i) {
-      var d = Math.abs(r.top - wRect.top);
-      if (d < best) { best = d; lineIndex = i; }
-    });
-    var lineRect = pRects[lineIndex];
-    var firstOfLine = Math.abs(wRect.left - lineRect.left) < 3;
-    var lastOfLine = Math.abs(wRect.right - lineRect.right) < 3;
-    var firstLineOfParagraph = lineIndex === 0;
-    var lastLineOfParagraph = lineIndex === pRects.length - 1;
-
     el.textContent = '';
     el.classList.add('accident-word');
     for (var i = 0; i < word.length; i++) {
@@ -230,27 +280,31 @@
       g.style.transform = 'translateY(' + ty.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg)';
       el.appendChild(g);
     }
+  }
 
-    var tx = 0, ty2 = 0;
-    if (firstOfLine) tx -= 15;
-    if (lastOfLine) tx += 15;
-    if (firstLineOfParagraph) ty2 -= 6;
-    if (lastLineOfParagraph) ty2 += 6;
-    if (tx || ty2) el.style.transform += ' translate(' + tx + 'px,' + ty2 + 'px)';
+  function processPhraseBold(el) {
+    el.classList.add('accident-text');
+    var rot = rand(-3, 3), ty = rand(-4, 4);
+    el.style.transform = 'rotate(' + rot.toFixed(2) + 'deg) translateY(' + ty.toFixed(1) + 'px)';
+  }
+
+  function processBoldWithinLines(container) {
+    container.querySelectorAll('b, strong').forEach(function (b) {
+      var isWord = b.textContent.trim().indexOf(' ') === -1;
+      if (isWord) processWordBold(b);
+      else processPhraseBold(b);
+    });
   }
 
   function processAccidents(container) {
     // Any block that wraps its own text independently — paragraphs and
-    // list items alike — needs its bold spans processed against its own
-    // line geometry.
+    // list items alike — gets split into its real rendered lines and drifted,
+    // then any bold spans left inside those lines get their own treatment.
     container.querySelectorAll('p, li').forEach(function (block) {
-      var bolds = Array.prototype.slice.call(block.querySelectorAll('b, strong'));
-      bolds.forEach(function (b) {
-        var isWord = b.textContent.trim().indexOf(' ') === -1;
-        if (isWord) processWordBold(b, block);
-        else processTextBold(b);
-      });
+      splitBlockIntoLines(block);
+      applyDrift(block, container, 0.10);
     });
+    processBoldWithinLines(container);
   }
 
   // Blank, column-aligned filler blocks — re-rolled on every page load so
