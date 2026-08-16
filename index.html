@@ -7,7 +7,7 @@
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.3; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 24px; line-height: 1.3; }
   a { color: inherit; font-family: 'Times New Roman', Times, serif; font-style: italic; text-decoration: underline; }
 
   .site-header {
@@ -378,7 +378,7 @@
       // without reintroducing reserved space.
       var tilt = 0;
       if (rawAngles[i] !== 0 && lineRect.width > 0) {
-        var naturalSlack = 2.4;
+        var naturalSlack = 4.8;
         var maxAngle = Math.min(3.25, Math.asin(Math.min(1, (2 * naturalSlack) / lineRect.width)) * (180 / Math.PI));
         var sign2 = rawAngles[i] > 0 ? 1 : -1;
         tilt = sign2 * Math.min(Math.abs(rawAngles[i]), maxAngle);
@@ -407,7 +407,7 @@
       var g = document.createElement('span');
       g.className = 'glyph';
       g.textContent = ch;
-      var rot = rand(-12, 12), ty = rand(-3, 3);
+      var rot = rand(-12, 12), ty = rand(-6, 6);
       g.style.transform = 'translateY(' + ty.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg)';
       el.appendChild(g);
     }
@@ -446,8 +446,8 @@
       // paint-only and don't push neighbours apart, so relying on the wobble
       // alone let adjacent letters land on top of each other. This margin is
       // what actually spaces them; the small translate is just added jitter.
-      g.style.marginRight = rand(1, 9).toFixed(1) + 'px';
-      var tx = rand(-1.5, 1.5), ty = rand(-6, 6), gr = rand(-8, 8);
+      g.style.marginRight = rand(2, 18).toFixed(1) + 'px';
+      var tx = rand(-3, 3), ty = rand(-12, 12), gr = rand(-8, 8);
       g.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) rotate(' + gr.toFixed(1) + 'deg)';
       el.appendChild(g);
     }
@@ -467,6 +467,21 @@
     var zoneRight = contentWidth * 0.75;
     var maxLeft = Math.max(zoneLeft, zoneRight - el.offsetWidth);
     el.style.marginLeft = rand(zoneLeft, maxLeft).toFixed(1) + 'px';
+  }
+
+  // Text cards now span the full row (see the spans() change in
+  // layoutMasonry below), but text-content itself keeps its own
+  // comfortable max-width for reading — otherwise a paragraph would
+  // stretch edge to edge into an unreadably long line length. That still
+  // leaves real room to land the block anywhere across the row instead of
+  // always flush left, in the same spirit as the title's placement.
+  function positionTextRandomly(textContentEl) {
+    var card = textContentEl.closest('.card');
+    if (!card) return;
+    var cs = getComputedStyle(card);
+    var contentWidth = card.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    var maxLeft = Math.max(0, contentWidth - textContentEl.offsetWidth);
+    textContentEl.style.marginLeft = rand(0, maxLeft).toFixed(1) + 'px';
   }
 
   // Blank, column-aligned filler blocks — re-rolled on every page load so
@@ -500,8 +515,12 @@
     var spans = cards.map(function (card) {
       var isFull = card.classList.contains('full');
       if (isFull) return colCount;
-      var wantsWide = card.classList.contains('text') || card.classList.contains('img-large')
-        || card.getAttribute('data-span') === '2';
+      // At the current (larger) body text size a 2-column card is too
+      // narrow to hold more than a few words per line — text now always
+      // takes the full row, same as a plein-écran image, but still inside
+      // the feed's own padding rather than bleeding to the true edge.
+      if (card.classList.contains('text')) return colCount;
+      var wantsWide = card.classList.contains('img-large') || card.getAttribute('data-span') === '2';
       return Math.min(wantsWide ? 2 : 1, colCount);
     });
 
@@ -524,6 +543,7 @@
     feed.querySelectorAll('.text-content').forEach(function (el) {
       if (textOriginals.has(el)) el.innerHTML = textOriginals.get(el);
       processAccidents(el);
+      positionTextRandomly(el);
     });
     var heights = cards.map(function (card) { return card.getBoundingClientRect().height; });
 
@@ -540,6 +560,11 @@
       var start, stillBlocked = false;
       if (span >= colCount) {
         start = 0;
+        // A full-row card doesn't "span a pair of columns" the way the
+        // notch logic below reasons about, but two text posts landing
+        // back to back at full width should still get forced apart the
+        // same as the narrower case used to.
+        if (isText && colLastType[0] === 'text') stillBlocked = true;
       } else if (span === 1) {
         start = colHeights.indexOf(Math.min.apply(null, colHeights));
       } else {
