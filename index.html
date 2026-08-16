@@ -342,16 +342,11 @@
     // line's pull can come from a source before OR after it, before any
     // line is actually processed below.
     var rawAngles = new Array(n).fill(0);
-    // Distance 2 dropped and the source chance halved: reaching two lines
-    // out on both sides at 12%-per-line meant nearly every line in a
-    // typical paragraph carried at least a faint pull, so the paragraph
-    // read as loosened everywhere instead of just leaning near a few
-    // sources.
-    var spread = [[0, 1], [1, 0.5]];
+    var spread = [[0, 1], [1, 0.55], [2, 0.22]];
     for (var i = 0; i < n; i++) {
-      if (Math.random() < 0.06) {
+      if (Math.random() < 0.12) {
         var sign = Math.random() < 0.5 ? -1 : 1;
-        var base = rand(0.5, 1.1);
+        var base = rand(1, 2.2);
         spread.forEach(function (pair) {
           var dist = pair[0], weight = pair[1];
           if (dist === 0) { rawAngles[i] += sign * base * weight; return; }
@@ -378,20 +373,19 @@
       // box itself would rotate the padding too, adding reach on top of
       // the space meant to absorb it.
       //
-      // The padding is computed from the actual angle THIS line ends up
-      // with, not a flat allocation for any tilted line — most lines only
-      // carry a faint, decayed pull from a nearby source and need almost
-      // no room; reserving a fixed amount regardless is what was making
-      // every tilted line look like a gap in the paragraph's texture even
-      // when its own lean was tiny. The absolute angle cap keeps even a
-      // strong source (or several overlapping pulls reinforcing each
-      // other) from ever demanding more than a couple of pixels.
+      // The budget is fixed and small — the paragraph must always look
+      // tight — so it's the angle that gives way to fit it, not the other
+      // way around: the more a line is pulled toward tilting, the harder
+      // it gets reined in on a wide line (little of that pull actually
+      // shows), while the same small budget lets a short line lean much
+      // further. A raw pull from propagation is a request, not a
+      // guarantee.
       var tilt = 0;
       if (rawAngles[i] !== 0 && lineRect.width > 0) {
+        var buffer = 3;
+        var maxAngle = Math.min(2.5, Math.asin(Math.min(1, (2 * buffer) / lineRect.width)) * (180 / Math.PI));
         var sign2 = rawAngles[i] > 0 ? 1 : -1;
-        tilt = sign2 * Math.min(Math.abs(rawAngles[i]), 0.8);
-        var reach = (lineRect.width / 2) * Math.sin(Math.abs(tilt) * Math.PI / 180);
-        var buffer = Math.ceil(reach) + 1;
+        tilt = sign2 * Math.min(Math.abs(rawAngles[i]), maxAngle);
         line.style.paddingTop = buffer + 'px';
         line.style.paddingBottom = buffer + 'px';
         var inner = document.createElement('span');
