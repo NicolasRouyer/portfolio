@@ -155,8 +155,13 @@
         for (var s = 0; s + span <= colCount; s++) {
           var segment = colHeights.slice(s, s + span);
           var segMax = Math.max.apply(null, segment);
+          var segMin = Math.min.apply(null, segment);
+          // A wide card starts at the tallest column it spans, leaving a
+          // notch in the shorter one — weight that imbalance so wide cards
+          // prefer already-level pairs of columns over merely-shorter ones.
+          var imbalance = segMax - segMin;
           var blocked = isText && colLastType.slice(s, s + span).indexOf('text') !== -1;
-          var score = segMax + (blocked ? 1e9 : 0);
+          var score = segMax + imbalance * 6 + (blocked ? 1e9 : 0);
           if (score < bestScore) { bestScore = score; bestStart = s; bestBlocked = blocked; }
         }
         start = bestStart;
