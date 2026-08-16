@@ -54,7 +54,6 @@
      tilts too. Bold is never rendered bold — every letter, whether it's a
      single word or a whole phrase, gets individually offset instead. */
   .line-drift { display: block; width: fit-content; }
-  .line-tilt { display: inline-block; width: fit-content; }
   .accident-word { display: inline-block; font-weight: 400; }
   .glyph { display: inline-block; }
 
@@ -365,37 +364,28 @@
       proposed = Math.max(-slackLeft, Math.min(slackRight, proposed));
       offset = proposed;
 
-      // Lines otherwise pack with zero natural gap, so a rotated line's
-      // bounding box would reach straight into its neighbour's — reserving
-      // that reach as real padding is what keeps them apart. That padding
-      // has to live on an unrotated OUTER wrapper with the rotation on an
-      // INNER one sized only to the natural content: rotating the padded
-      // box itself would rotate the padding too, adding reach on top of
-      // the space meant to absorb it.
-      //
-      // The budget is fixed and small — the paragraph must always look
-      // tight — so it's the angle that gives way to fit it, not the other
-      // way around: the more a line is pulled toward tilting, the harder
-      // it gets reined in on a wide line (little of that pull actually
-      // shows), while the same small budget lets a short line lean much
-      // further. A raw pull from propagation is a request, not a
-      // guarantee.
+      // No padding, no separate rotation pivot — the normal leading
+      // line-height already leaves a little slack above and below a
+      // line's own ink, so a rotated line's reach mostly disappears into
+      // it with no reserved space at all, *as long as the angle stays
+      // small enough for THIS line's width*. This is a deliberate
+      // trade-off, not a guarantee: measurement across many re-rolls
+      // shows an occasional bounding-box overlap of up to ~2px where two
+      // same-direction neighbours (which propagation makes common) both
+      // reach into the same shared gap from opposite sides — invisible in
+      // practice against real letterforms so far, but if a visible glyph
+      // collision ever turns up, this is the tight end of what's possible
+      // without reintroducing reserved space.
       var tilt = 0;
       if (rawAngles[i] !== 0 && lineRect.width > 0) {
-        var buffer = 1.5;
-        var maxAngle = Math.min(2.5, Math.asin(Math.min(1, (2 * buffer) / lineRect.width)) * (180 / Math.PI));
+        var naturalSlack = 1;
+        var maxAngle = Math.min(1.5, Math.asin(Math.min(1, (2 * naturalSlack) / lineRect.width)) * (180 / Math.PI));
         var sign2 = rawAngles[i] > 0 ? 1 : -1;
         tilt = sign2 * Math.min(Math.abs(rawAngles[i]), maxAngle);
-        line.style.paddingTop = buffer + 'px';
-        line.style.paddingBottom = buffer + 'px';
-        var inner = document.createElement('span');
-        inner.className = 'line-tilt';
-        while (line.firstChild) inner.appendChild(line.firstChild);
-        line.appendChild(inner);
-        inner.style.transform = 'rotate(' + tilt.toFixed(2) + 'deg)';
       }
 
-      line.style.transform = 'translateX(' + offset.toFixed(1) + 'px)';
+      line.style.transform = 'translateX(' + offset.toFixed(1) + 'px)' +
+        (tilt ? ' rotate(' + tilt.toFixed(2) + 'deg)' : '');
     });
   }
 
