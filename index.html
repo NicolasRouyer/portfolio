@@ -93,6 +93,30 @@
     });
   }
 
+  // Content pasted into the admin from elsewhere can carry its own inline
+  // font/size/color and <span> wrappers, which would silently override the
+  // site's typography. Strip that at render time so the public site always
+  // matches the site's own style no matter what ends up in the data.
+  function sanitizeContent(html) {
+    var div = document.createElement('div');
+    div.innerHTML = html || '';
+    var walker = document.createTreeWalker(div, NodeFilter.SHOW_ELEMENT);
+    var spans = [];
+    var node;
+    while ((node = walker.nextNode())) {
+      node.removeAttribute('style');
+      node.removeAttribute('class');
+      if (node.tagName === 'SPAN') spans.push(node);
+    }
+    spans.forEach(function (span) {
+      var parent = span.parentNode;
+      if (!parent) return;
+      while (span.firstChild) parent.insertBefore(span.firstChild, span);
+      parent.removeChild(span);
+    });
+    return div.innerHTML;
+  }
+
   function renderCard(post) {
     if (post.type === 'image') {
       var size = post.size === 'small' || post.size === 'full' ? post.size : 'large';
@@ -103,7 +127,7 @@
         '</article>';
     }
     return '<article class="card text">' +
-      '<div class="text-content">' + (post.content || '') + '</div>' +
+      '<div class="text-content">' + sanitizeContent(post.content) + '</div>' +
       '</article>';
   }
 
@@ -125,35 +149,38 @@
   }
 
   // Splits an element's plain text into the substrings that land on each
-  // rendered visual line, by growing a Range character by character and
-  // watching when its top jumps to the next line.
+  // rendered visual line. Asks the browser directly where the caret would
+  // land at the start of each line's rect (caretRangeFromPoint) instead of
+  // growing a Range char-by-char, which was fragile right at word-wrap
+  // spaces and could strand a stray letter on its own line.
   function splitIntoVisualLines(el) {
     var text = el.textContent;
     el.textContent = '';
     var textNode = document.createTextNode(text);
     el.appendChild(textNode);
-    var probe = document.createRange();
-    probe.selectNodeContents(el);
-    var lineRects = probe.getClientRects();
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    var lineRects = Array.prototype.slice.call(range.getClientRects());
     if (lineRects.length <= 1) return [text];
 
+    if (!document.caretRangeFromPoint) {
+      // No reliable per-line splitting available on this browser — better
+      // to leave the phrase as a single tilted block than risk mis-slicing it.
+      return [text];
+    }
+
+    var offsets = [0];
+    for (var i = 1; i < lineRects.length; i++) {
+      var rect = lineRects[i];
+      var caret = document.caretRangeFromPoint(Math.ceil(rect.left) + 1, rect.top + rect.height / 2);
+      var offset = (caret && caret.startContainer === textNode) ? caret.startOffset : offsets[offsets.length - 1];
+      offsets.push(Math.max(offset, offsets[offsets.length - 1]));
+    }
+    offsets.push(text.length);
+
     var lines = [];
-    var start = 0;
-    for (var li = 0; li < lineRects.length && start < text.length; li++) {
-      var top = lineRects[li].top;
-      var end = start;
-      while (end < text.length) {
-        probe.setStart(textNode, start);
-        probe.setEnd(textNode, end + 1);
-        var r = probe.getClientRects();
-        var lastTop = r.length ? r[r.length - 1].top : top;
-        if (Math.abs(lastTop - top) > 2) break;
-        end++;
-      }
-      if (end === start) end = start + 1;
-      lines.push(text.slice(start, end));
-      start = end;
-      while (start < text.length && text[start] === ' ') start++;
+    for (var j = 0; j < lineRects.length; j++) {
+      lines.push(text.slice(offsets[j], offsets[j + 1]).replace(/^ +/, ''));
     }
     return lines;
   }
@@ -213,11 +240,14 @@
   }
 
   function processAccidents(container) {
-    container.querySelectorAll('p').forEach(function (p) {
-      var bolds = Array.prototype.slice.call(p.querySelectorAll('b, strong'));
+    // Any block that wraps its own text independently — paragraphs and
+    // list items alike — needs its bold spans processed against its own
+    // line geometry.
+    container.querySelectorAll('p, li').forEach(function (block) {
+      var bolds = Array.prototype.slice.call(block.querySelectorAll('b, strong'));
       bolds.forEach(function (b) {
         var isWord = b.textContent.trim().indexOf(' ') === -1;
-        if (isWord) processWordBold(b, p);
+        if (isWord) processWordBold(b, block);
         else processTextBold(b);
       });
     });
