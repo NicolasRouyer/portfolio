@@ -29,20 +29,39 @@
   .card.text { padding: 20px; border-radius: 2px; }
   .card.spacer { visibility: hidden; }
   .card .photo { position: relative; display: block; overflow: hidden; border-radius: 2px; }
-  .card .photo img { width: 100%; height: auto; display: block; }
-  /* Plein écran stays edge-to-edge by design — only small/large cards get
-     the photo shrunk within its reserved block. */
-  .card:not(.full) .photo { width: 50%; margin: 0 auto; }
-  .card .caption { margin: 8px 0 0 0; }
+  .card .photo img { display: block; }
 
-  /* "Documentaire / archive": a heavy, deliberately washed-out treatment —
-     flattened contrast, no colour, film grain — reserved for photos tagged
-     as such in the admin. Contrast/brightness sit on the image itself; the
-     grain is a separate full-bleed overlay so its SVG noise composites over
-     the (already flattened) photo via mix-blend-mode instead of the two
-     effects fighting for the same filter pipeline. */
-  .card.archive .photo img { filter: grayscale(1) contrast(40%) brightness(121%); }
-  .card.archive .grain-overlay {
+  /* Slideshow: every non-documentary image belonging to the same project,
+     grouped into one card and laid out in a row — always the same height,
+     width following naturally from each photo's own aspect ratio (never
+     cropped or stretched). Wraps on narrow viewports rather than forcing
+     a horizontal scrollbar. */
+  .slideshow-row { display: flex; flex-wrap: wrap; gap: 16px; }
+  .slideshow-row .photo { height: 340px; }
+  .slideshow-row .photo img { height: 100%; width: auto; }
+  @media (max-width: 900px) { .slideshow-row .photo { height: 260px; } }
+  @media (max-width: 560px) { .slideshow-row .photo { height: 190px; } }
+
+  /* Contact sheet: every documentary/archive image, regardless of project,
+     grouped into one dense grid — the opposite of the slideshow's breathing
+     room. Each frame is a fixed height with the photo bottom-aligned inside
+     it (aspect ratio preserved, never cropped) and its date underneath. */
+  .contact-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 14px; }
+  .contact-grid .frame { display: flex; flex-direction: column; }
+  .contact-grid .frame-photo { height: 150px; display: flex; align-items: flex-end; justify-content: center; }
+  .contact-grid .frame-photo .photo { height: 100%; }
+  .contact-grid .frame-photo .photo img { height: 100%; width: auto; }
+  .contact-grid .frame-date {
+    font-size: 11px; text-align: center; margin-top: 6px; color: #555;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Documentary treatment lives on the contact sheet unconditionally now —
+     every photo in it got there specifically because it's tagged archive,
+     so the flattened contrast + grain no longer needs a per-post class to
+     key off of. */
+  .contact-grid .photo img { filter: grayscale(1) contrast(40%) brightness(121%); }
+  .contact-grid .grain-overlay {
     position: absolute; inset: 0; pointer-events: none;
     mix-blend-mode: overlay; background: #808080; filter: url(#grainFilter);
   }
@@ -157,21 +176,81 @@
   }
 
   function renderCard(post) {
-    if (post.type === 'image') {
-      var size = post.size === 'small' || post.size === 'full' ? post.size : 'large';
-      var cls = size === 'full' ? 'card full' : size === 'large' ? 'card img-large' : 'card';
-      if (post.archive) cls += ' archive';
-      return '<article class="' + cls + '">' +
-        '<div class="photo">' +
-          '<img src="' + escapeAttr(post.src) + '" alt="" onerror="handleImgError(this)">' +
-          (post.archive ? '<span class="grain-overlay" aria-hidden="true"></span>' : '') +
-        '</div>' +
-        (post.caption ? '<p class="caption">' + escapeHtml(post.caption) + '</p>' : '') +
-        '</article>';
-    }
     return '<article class="card text">' +
       '<div class="text-content">' + sanitizeContent(post.content) + '</div>' +
       '</article>';
+  }
+
+  // Images no longer stand alone: every non-documentary image joins the
+  // slideshow of its project (or a slideshow of one, if it has none),
+  // every documentary/archive image joins the single site-wide contact
+  // sheet — grouped in groupPostsForRender below, before any of this runs.
+  function renderSlideshow(items) {
+    var photos = items.map(function (p) {
+      return '<div class="photo"><img src="' + escapeAttr(p.src) + '" alt="" onerror="handleImgError(this)"></div>';
+    }).join('');
+    return '<article class="card slideshow"><div class="slideshow-row">' + photos + '</div></article>';
+  }
+
+  var FR_MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  function formatFrenchDate(dateStr) {
+    var parts = (dateStr || '').split('-');
+    if (parts.length !== 3) return dateStr || '';
+    var y = parts[0], m = parseInt(parts[1], 10), d = parseInt(parts[2], 10);
+    if (!y || !m || !d || m < 1 || m > 12) return dateStr;
+    return d + ' ' + FR_MONTHS[m - 1] + ' ' + y;
+  }
+
+  function renderContactSheet(items) {
+    var frames = items.map(function (p) {
+      return '' +
+        '<div class="frame">' +
+          '<div class="frame-photo">' +
+            '<div class="photo">' +
+              '<img src="' + escapeAttr(p.src) + '" alt="" onerror="handleImgError(this)">' +
+              '<span class="grain-overlay" aria-hidden="true"></span>' +
+            '</div>' +
+          '</div>' +
+          '<div class="frame-date">' + escapeHtml(formatFrenchDate(p.date)) + '</div>' +
+        '</div>';
+    }).join('');
+    return '<article class="card contact-sheet"><div class="contact-grid">' + frames + '</div></article>';
+  }
+
+  // One chronological pass, grouping as it goes: every documentary image
+  // (wherever it falls) joins a single running contact sheet; every other
+  // image joins the slideshow for its project, keyed by first appearance
+  // so the group's position in the feed is wherever that project's first
+  // photo would have sorted. Text posts, and images with no project,
+  // pass through as their own single-item group.
+  function groupPostsForRender(posts) {
+    var groups = [];
+    var projectGroups = {};
+    var archiveGroup = null;
+    posts.forEach(function (post) {
+      if (post.type === 'image' && post.archive) {
+        if (!archiveGroup) {
+          archiveGroup = { kind: 'contact-sheet', items: [] };
+          groups.push(archiveGroup);
+        }
+        archiveGroup.items.push(post);
+        return;
+      }
+      if (post.type === 'image' && post.project) {
+        var existing = projectGroups[post.project];
+        if (existing) { existing.items.push(post); return; }
+        var group = { kind: 'slideshow', items: [post] };
+        projectGroups[post.project] = group;
+        groups.push(group);
+        return;
+      }
+      if (post.type === 'image') {
+        groups.push({ kind: 'slideshow', items: [post] });
+        return;
+      }
+      groups.push({ kind: 'text', items: [post] });
+    });
+    return groups;
   }
 
   // ---- Bold/italic "accidents" ----
@@ -545,12 +624,13 @@
     var spans = cards.map(function (card) {
       var isFull = card.classList.contains('full');
       if (isFull) return colCount;
-      // At the current (larger) body text size a 2-column card is too
-      // narrow to hold more than a few words per line — text now always
-      // takes the full row, same as a plein-écran image, but still inside
-      // the feed's own padding rather than bleeding to the true edge.
-      if (card.classList.contains('text')) return colCount;
-      var wantsWide = card.classList.contains('img-large') || card.getAttribute('data-span') === '2';
+      // At the current (larger) body text size a narrower card is too
+      // cramped to be worth it — text, and the slideshow/contact-sheet
+      // image groups, always take the full row, same as a plein-écran
+      // image, but still inside the feed's own padding rather than
+      // bleeding to the true edge.
+      if (card.classList.contains('text') || card.classList.contains('slideshow') || card.classList.contains('contact-sheet')) return colCount;
+      var wantsWide = card.getAttribute('data-span') === '2';
       return Math.min(wantsWide ? 2 : 1, colCount);
     });
 
@@ -661,13 +741,17 @@
   function render() {
     document.title = siteData.siteTitle || 'Mon site';
     var posts = sortedPosts();
+    var groups = groupPostsForRender(posts);
     // Re-rolled every load, so how sparse or busy the blank blocks feel
     // varies from one visit to the next. Keeping two text posts apart is
     // handled by layoutMasonry's column routing.
     var spacerChance = 0.15 + Math.random() * 0.35;
-    var cards = posts.map(function (post) {
+    var cards = groups.map(function (group) {
       var spacer = Math.random() < spacerChance ? renderSpacer() : '';
-      return spacer + renderCard(post);
+      var html = group.kind === 'slideshow' ? renderSlideshow(group.items)
+        : group.kind === 'contact-sheet' ? renderContactSheet(group.items)
+        : renderCard(group.items[0]);
+      return spacer + html;
     }).join('');
 
     document.getElementById('app').innerHTML =
