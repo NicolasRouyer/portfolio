@@ -17,21 +17,23 @@
   .site-title { display: inline-block; font-weight: 400; text-transform: uppercase; word-break: break-word; }
   .title-glyph { display: inline-block; }
 
-  /* Fixed chrome, not editorial content — small, always visible, a
-     deliberate exception to the black-on-white-only rule (black bar,
-     white text) since it reads as UI rather than a photo or a post. */
+  /* Fixed chrome, transparent — no background of its own, so it reads as
+     part of the page rather than a UI bar bolted on top. Location and
+     links land at a random spot each load (left half / right half so
+     they never collide) with their own random justification, same
+     "accidents" spirit as the title and the text drift elsewhere. */
   .site-footer {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-    background: #000; color: #fff;
-    padding: 14px 48px; display: flex; justify-content: space-between; align-items: flex-end;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; height: 90px;
+    padding: 0 48px; pointer-events: none;
     font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.6;
   }
+  .site-footer > * { position: absolute; bottom: 14px; pointer-events: auto; }
   .site-footer a {
-    color: #fff; font-family: Arial, Helvetica, sans-serif; font-style: normal; text-decoration: none;
+    color: inherit; font-family: Arial, Helvetica, sans-serif; font-style: normal; text-decoration: none;
   }
   .site-footer a:hover { text-decoration: underline; }
-  .footer-links { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
-  @media (max-width: 560px) { .site-footer { padding: 12px 20px; font-size: 11px; } }
+  .footer-links { display: flex; flex-direction: column; gap: 2px; }
+  @media (max-width: 560px) { .site-footer { padding: 0 20px; font-size: 11px; } }
 
   :root { --feed-pad: 48px; --feed-gap: 16px; }
 
@@ -138,7 +140,7 @@
 <div id="app"><div class="muted" style="padding-top:40px;">Chargement…</div></div>
 
 <footer class="site-footer">
-  <span>Bruxelles</span>
+  <span class="footer-loc">Bruxelles</span>
   <span class="footer-links">
     <a href="#" target="_blank" rel="noopener">LinkedIn</a>
     <a href="#" target="_blank" rel="noopener">Instagram</a>
@@ -618,6 +620,34 @@
     textContentEl.style.marginLeft = rand(0, maxLeft).toFixed(1) + 'px';
   }
 
+  // Location and links each land at a random spot — Bruxelles confined to
+  // the left half of the bar, the links to the right half, so a wide
+  // random range never risks the two colliding. The link group's own
+  // justification (left/centre/right, relevant since it's three stacked
+  // lines of differing length) is re-rolled the same way.
+  function positionFooterRandomly() {
+    var footer = document.querySelector('.site-footer');
+    if (!footer) return;
+    var loc = footer.querySelector('.footer-loc');
+    var links = footer.querySelector('.footer-links');
+    if (!loc || !links) return;
+    var cs = getComputedStyle(footer);
+    var padLeft = parseFloat(cs.paddingLeft), padRight = parseFloat(cs.paddingRight);
+    var contentWidth = footer.clientWidth - padLeft - padRight;
+    var mid = contentWidth / 2;
+
+    var locMaxLeft = Math.max(0, mid - loc.offsetWidth);
+    loc.style.left = (padLeft + rand(0, locMaxLeft)).toFixed(1) + 'px';
+
+    var linksMaxLeft = Math.max(mid, contentWidth - links.offsetWidth);
+    links.style.left = (padLeft + rand(mid, linksMaxLeft)).toFixed(1) + 'px';
+
+    var aligns = ['left', 'center', 'right'];
+    links.style.textAlign = aligns[Math.floor(Math.random() * aligns.length)];
+    links.style.alignItems = links.style.textAlign === 'left' ? 'flex-start'
+      : links.style.textAlign === 'right' ? 'flex-end' : 'center';
+  }
+
   // Blank, column-aligned filler blocks — re-rolled on every page load so
   // the layout never packs identically twice.
   function renderSpacer() {
@@ -760,7 +790,10 @@
   var resizeTimer;
   window.addEventListener('resize', function () {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(layoutMasonry, 150);
+    resizeTimer = setTimeout(function () {
+      layoutMasonry();
+      positionFooterRandomly();
+    }, 150);
   });
 
   function render() {
@@ -790,6 +823,7 @@
       renderTitleAccident(titleEl);
       positionTitleRandomly(titleEl);
     }
+    positionFooterRandomly();
 
     var feed = document.querySelector('.feed');
     if (feed) {
