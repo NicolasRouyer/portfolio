@@ -7,7 +7,7 @@
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 36px; line-height: 1.3; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 36px; line-height: 1.3; padding-bottom: 110px; }
   a { color: inherit; font-family: 'Times New Roman', Times, serif; font-style: italic; text-decoration: underline; }
 
   .site-header {
@@ -16,6 +16,22 @@
   }
   .site-title { display: inline-block; font-weight: 400; text-transform: uppercase; word-break: break-word; }
   .title-glyph { display: inline-block; }
+
+  /* Fixed chrome, not editorial content — small, always visible, a
+     deliberate exception to the black-on-white-only rule (black bar,
+     white text) since it reads as UI rather than a photo or a post. */
+  .site-footer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    background: #000; color: #fff;
+    padding: 14px 48px; display: flex; justify-content: space-between; align-items: flex-end;
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.6;
+  }
+  .site-footer a {
+    color: #fff; font-family: Arial, Helvetica, sans-serif; font-style: normal; text-decoration: none;
+  }
+  .site-footer a:hover { text-decoration: underline; }
+  .footer-links { display: flex; flex-direction: column; align-items: flex-end; text-align: right; }
+  @media (max-width: 560px) { .site-footer { padding: 12px 20px; font-size: 11px; } }
 
   :root { --feed-pad: 48px; --feed-gap: 16px; }
 
@@ -28,7 +44,7 @@
   .card { position: absolute; }
   .card.text { padding: 20px; border-radius: 2px; }
   .card.spacer { visibility: hidden; }
-  .card .photo { position: relative; display: block; overflow: hidden; border-radius: 2px; }
+  .card .photo { position: relative; display: block; overflow: hidden; border-radius: 20px; }
   .card .photo img { display: block; }
 
   /* Slideshow: every non-documentary image belonging to the same project,
@@ -120,6 +136,15 @@
 </svg>
 
 <div id="app"><div class="muted" style="padding-top:40px;">Chargement…</div></div>
+
+<footer class="site-footer">
+  <span>Bruxelles</span>
+  <span class="footer-links">
+    <a href="#" target="_blank" rel="noopener">LinkedIn</a>
+    <a href="#" target="_blank" rel="noopener">Instagram</a>
+    <a href="#">Email</a>
+  </span>
+</footer>
 
 <script>
 (function () {
