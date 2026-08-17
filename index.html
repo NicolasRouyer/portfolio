@@ -7,7 +7,7 @@
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 36px; line-height: 1.3; padding-bottom: 110px; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 36px; line-height: 1.3; padding-bottom: 340px; }
   a { color: inherit; font-family: 'Times New Roman', Times, serif; font-style: italic; text-decoration: underline; }
 
   .site-header {
@@ -18,22 +18,29 @@
   .title-glyph { display: inline-block; }
 
   /* Fixed chrome, transparent — no background of its own, so it reads as
-     part of the page rather than a UI bar bolted on top. Location and
+     part of the page rather than a UI bar bolted on top. Same type size
+     as the rest of the site, not a smaller UI-chrome size. Location and
      links land at a random spot each load (left half / right half so
-     they never collide) with their own random justification, same
-     "accidents" spirit as the title and the text drift elsewhere. */
+     they never collide); the three links then drift sideways line to
+     line, the same cumulative-offset accident as body text, instead of
+     a plain left/centre/right justification. */
   .site-footer {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; height: 90px;
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; height: 300px;
     padding: 0 48px; pointer-events: none;
-    font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em; line-height: 1.6;
+    text-transform: uppercase; letter-spacing: 0.01em;
   }
   .site-footer > * { position: absolute; bottom: 14px; pointer-events: auto; }
   .site-footer a {
     color: inherit; font-family: Arial, Helvetica, sans-serif; font-style: normal; text-decoration: none;
   }
   .site-footer a:hover { text-decoration: underline; }
-  .footer-links { display: flex; flex-direction: column; gap: 2px; }
-  @media (max-width: 560px) { .site-footer { padding: 0 20px; font-size: 11px; } }
+  /* A fixed pixel budget, not a percentage — percentage padding here
+     would resolve against .site-footer (near full viewport width), not
+     against this block's own narrow content, ballooning the drift
+     canvas far past what's reasonable. */
+  .footer-links { display: flex; flex-direction: column; gap: 2px; padding: 0 40px; }
+  @media (max-width: 560px) { .footer-links { padding: 0 16px; } }
+  .footer-links a { display: block; width: fit-content; }
 
   :root { --feed-pad: 48px; --feed-gap: 16px; }
 
@@ -625,12 +632,36 @@
   // random range never risks the two colliding. The link group's own
   // justification (left/centre/right, relevant since it's three stacked
   // lines of differing length) is re-rolled the same way.
+  // Same cumulative-offset drift as body text (applyDrift above), just
+  // without that function's line-splitting — each link is already its
+  // own line, one per row, so there's nothing to split. The block's own
+  // 20% side padding (see .footer-links) is the drift canvas, exactly
+  // like text-content's padding is for paragraphs.
+  function driftFooterLinks(container) {
+    var lines = Array.prototype.slice.call(container.children);
+    if (!lines.length) return;
+    lines.forEach(function (line) { line.style.transform = 'none'; });
+    var canvasRect = container.getBoundingClientRect();
+    var maxStep = canvasRect.width * 0.12;
+    var offset = 0;
+    lines.forEach(function (line) {
+      var lineRect = line.getBoundingClientRect();
+      var slackRight = canvasRect.right - lineRect.right;
+      var slackLeft = lineRect.left - canvasRect.left;
+      var proposed = offset + rand(-maxStep, maxStep);
+      proposed = Math.max(-slackLeft, Math.min(slackRight, proposed));
+      offset = proposed;
+      line.style.transform = 'translateX(' + offset.toFixed(1) + 'px)';
+    });
+  }
+
   function positionFooterRandomly() {
     var footer = document.querySelector('.site-footer');
     if (!footer) return;
     var loc = footer.querySelector('.footer-loc');
     var links = footer.querySelector('.footer-links');
     if (!loc || !links) return;
+    loc.style.bottom = '14px'; // reset before measuring — see the stacking fallback below
     var cs = getComputedStyle(footer);
     var padLeft = parseFloat(cs.paddingLeft), padRight = parseFloat(cs.paddingRight);
     var contentWidth = footer.clientWidth - padLeft - padRight;
@@ -639,13 +670,30 @@
     var locMaxLeft = Math.max(0, mid - loc.offsetWidth);
     loc.style.left = (padLeft + rand(0, locMaxLeft)).toFixed(1) + 'px';
 
-    var linksMaxLeft = Math.max(mid, contentWidth - links.offsetWidth);
-    links.style.left = (padLeft + rand(mid, linksMaxLeft)).toFixed(1) + 'px';
+    // Prefer keeping the links block in the right half, but at a narrow
+    // viewport with this much bigger type it can be wider than that half
+    // outright — asking rand() for a range that starts past where the
+    // block could ever fully fit would force it off-screen no matter what
+    // value came out. Fall back to "wherever it still fits on screen"
+    // rather than guarantee an overflow.
+    var linksAbsoluteMaxLeft = Math.max(0, contentWidth - links.offsetWidth);
+    var linksMinLeft = Math.min(mid, linksAbsoluteMaxLeft);
+    links.style.left = (padLeft + rand(linksMinLeft, linksAbsoluteMaxLeft)).toFixed(1) + 'px';
 
-    var aligns = ['left', 'center', 'right'];
-    links.style.textAlign = aligns[Math.floor(Math.random() * aligns.length)];
-    links.style.alignItems = links.style.textAlign === 'left' ? 'flex-start'
-      : links.style.textAlign === 'right' ? 'flex-end' : 'center';
+    driftFooterLinks(links);
+
+    // Belt and suspenders: the width math above assumes a half each is
+    // enough, which a narrow viewport with this large a type size can
+    // break in ways that are hard to fully predict in advance. Check the
+    // actual rendered boxes and, if they still collide, stack Bruxelles
+    // above the links instead of trying to fit both on the same line.
+    var locRect = loc.getBoundingClientRect(), linksRect = links.getBoundingClientRect();
+    var overlap = !(locRect.right <= linksRect.left || linksRect.right <= locRect.left ||
+                     locRect.bottom <= linksRect.top || linksRect.bottom <= locRect.top);
+    if (overlap) {
+      loc.style.left = padLeft + 'px';
+      loc.style.bottom = (14 + linksRect.height + 10) + 'px';
+    }
   }
 
   // Blank, column-aligned filler blocks — re-rolled on every page load so
