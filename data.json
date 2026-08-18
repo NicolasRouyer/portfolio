@@ -21,19 +21,6 @@
       "createdAt": 1786865884045
     },
     {
-      "id": "872522e4-112e-4c36-8b34-0da1fbc9bbe4",
-      "type": "image",
-      "date": "2026-08-16",
-      "category": "",
-      "project": "",
-      "content": "<p><br></p>",
-      "src": "images/msvi8gz8ghtbpv.jpg",
-      "caption": "",
-      "size": "small",
-      "archive": true,
-      "createdAt": 1786866601736
-    },
-    {
       "id": "b772c57b-9b8d-4a7d-ad74-7cc0ee1eef76",
       "type": "text",
       "date": "2021-06-16",
@@ -60,45 +47,6 @@
       "createdAt": 1786866713838
     },
     {
-      "id": "dadd4dcf-7f7a-4e24-bae3-49ccbb02c26e",
-      "type": "image",
-      "date": "2026-08-16",
-      "category": "",
-      "project": "",
-      "content": "<p><br></p>",
-      "src": "images/msvjhy9jyrp79o.jpeg",
-      "caption": "",
-      "size": "small",
-      "archive": true,
-      "createdAt": 1786868726637
-    },
-    {
-      "id": "639b2a7e-3d4d-4ce8-9ff1-4b48c4c6ebf1",
-      "type": "image",
-      "date": "2026-08-15",
-      "category": "",
-      "project": "",
-      "content": "<p><br></p>",
-      "src": "images/msvk40114owldo.jpg",
-      "caption": "",
-      "size": "large",
-      "archive": false,
-      "createdAt": 1786869755499
-    },
-    {
-      "id": "5b919858-afa4-454a-886f-f2687756a9d5",
-      "type": "image",
-      "date": "2026-08-15",
-      "category": "",
-      "project": "",
-      "content": "<p><br></p>",
-      "src": "images/msvk4gus1so4ge.jpg",
-      "caption": "",
-      "size": "small",
-      "archive": true,
-      "createdAt": 1786869772623
-    },
-    {
       "id": "dfa7bcc7-6191-4ae7-b4a5-42ba8cd1faa4",
       "type": "text",
       "date": "2026-08-15",
@@ -110,45 +58,6 @@
       "size": "large",
       "archive": false,
       "createdAt": 1786910649986
-    },
-    {
-      "id": "f66ae11a-0056-4030-85c2-dceb4135c9ba",
-      "type": "image",
-      "date": "2022-09-29",
-      "category": "",
-      "project": "",
-      "content": "<p><br></p>",
-      "src": "images/msw90jplf8o0ao.jpg",
-      "caption": "",
-      "size": "small",
-      "archive": true,
-      "createdAt": 1786911598112
-    },
-    {
-      "id": "ff16dc2a-4fce-41c7-a8b8-c54e69f2ad10",
-      "type": "image",
-      "date": "2026-08-14",
-      "category": "",
-      "project": "",
-      "content": "<p><br></p>",
-      "src": "images/mswaenulfnr3ir.jpg",
-      "caption": "",
-      "size": "small",
-      "archive": true,
-      "createdAt": 1786913920966
-    },
-    {
-      "id": "b9ba0c5a-5fef-4028-b26b-f48f31f1be77",
-      "type": "image",
-      "date": "2025-08-16",
-      "category": "",
-      "project": "",
-      "content": "<p><br></p>",
-      "src": "images/mswafu3mcx5v6d.jpg",
-      "caption": "",
-      "size": "large",
-      "archive": false,
-      "createdAt": 1786913979120
     }
   ]
 }
