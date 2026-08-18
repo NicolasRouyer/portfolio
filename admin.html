@@ -366,6 +366,38 @@
     exec('createLink', url);
   };
 
+  // Inline image: small, blurred, clickable — embedded right in the text
+  // rather than as its own post. Opening the native file picker steals
+  // focus from the editor, so the cursor position is captured before that
+  // and restored right before inserting, once the async upload resolves.
+  window.cmdInsertImage = function () {
+    var el = getEditorEl();
+    if (!el) return;
+    var sel = window.getSelection();
+    var savedRange = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
+
+    var input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = function (e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      showUploadStatus('Téléversement de l\'image…');
+      uploadImageToGithub(file).then(function (path) {
+        showUploadStatus('');
+        el.focus();
+        var restored = sel;
+        restored.removeAllRanges();
+        if (savedRange) restored.addRange(savedRange);
+        document.execCommand('insertHTML', false, '<img src="' + path + '">');
+        window.onDraftContentChanged(el);
+      }).catch(function (err) {
+        showUploadStatus('');
+        alert('Échec du téléversement : ' + err.message);
+      });
+    };
+    input.click();
+  };
+
   function addToList(list, value) {
     var v = (value || '').trim();
     if (!v) return;
@@ -645,7 +677,9 @@
           '<button onclick="cmdQuote()">Citation</button>' +
           '<button onclick="cmdList()">Liste</button>' +
           '<button onclick="cmdLinkExternal()">Lien externe</button>' +
+          '<button onclick="cmdInsertImage()">Image</button>' +
         '</div>' +
+        '<p class="upload-status" id="upload-status"></p>' +
         '<div id="editor" class="editor" contenteditable="true" oninput="onDraftContentChanged(this)" onpaste="handleEditorPaste(event)">' + draft.content + '</div>';
     } else {
       body = '<p class="upload-status" id="upload-status"></p>';
