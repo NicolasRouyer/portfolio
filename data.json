@@ -1,10 +1,12 @@
 {
   "siteTitle": "Nicolas Rouyer",
   "categories": [
-    "Développement"
+    "Développement",
+    "Service"
   ],
   "projects": [
-    "ERP muséal"
+    "ERP muséal",
+    "Pli"
   ],
   "posts": [
     {
@@ -50,14 +52,27 @@
       "id": "dfa7bcc7-6191-4ae7-b4a5-42ba8cd1faa4",
       "type": "text",
       "date": "2026-08-15",
-      "category": "",
-      "project": "",
+      "category": "Service",
+      "project": "Pli",
       "content": "<p>Écrivez un mot court ou une lettre de plusieurs pages et accentuez le style avec une police de caractère.&nbsp;<img src=\"images/mszph5a4n1qqw5.png\">&nbsp;<img src=\"images/mszphj3dtebzvq.png\">&nbsp;Partagez des moments par courrier tout simplement.&nbsp;<a href=\"https://pli.services\">https://pli.services</a></p>",
       "src": null,
       "caption": "",
       "size": "large",
       "archive": false,
       "createdAt": 1786910649986
+    },
+    {
+      "id": "5154febd-39f0-44fa-a50e-62a919d76392",
+      "type": "text",
+      "date": "2026-08-19",
+      "category": "Développement",
+      "project": "Pli",
+      "content": "<p>L'objectif est de développer ce service en 30 jours maximum.</p>",
+      "src": null,
+      "caption": "",
+      "size": "large",
+      "archive": false,
+      "createdAt": 1787173920351
     }
   ]
 }
