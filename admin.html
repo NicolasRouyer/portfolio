@@ -86,6 +86,10 @@
   .editor ul, .editor ol { margin: 0 0 18px 0; padding-left: 22px; }
   .editor a { font-family: 'Times New Roman', Times, serif; font-style: italic; text-decoration: underline; }
   .editor > *:first-child { margin-top: 0; }
+  /* Inline images render blurred and tiny on the public site, but that would
+     make them nearly invisible/unclickable here — keep them plain and just
+     capped in size so a raw upload can't blow out the editing field. */
+  .editor img { max-width: 60px; max-height: 60px; vertical-align: middle; border-radius: 6px; object-fit: cover; }
 
   .drop-zone {
     border: 1px dashed #000; padding: 40px 20px; text-align: center; cursor: pointer;
