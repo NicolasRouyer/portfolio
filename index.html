@@ -77,15 +77,23 @@
   }
 
   /* Inline photos: a small, deliberately soft glyph sitting mid-sentence
-     rather than a full card — click it to see the real thing. A plain CSS
-     blur softens its own edge along with the image, so the glyph would
-     read as a vague smudge; clip-path re-cuts a crisp boundary through the
-     blurred output (independent of the element's own edges), giving a
-     heavily blurred interior with a sharp silhouette. */
+     rather than a full card — click it to see the real thing. Blurring an
+     image right up to its own edge fades that edge toward transparency —
+     over the white page that reads as a pale halo, not a full vignette.
+     Fixed by rendering the image oversized and clipping well inside that
+     oversized box: the fade-to-transparent zone lands outside the visible
+     area, so only fully-opaque blurred pixels ever show. The negative
+     margin then pulls the surrounding flow back in to match the visible
+     (clipped) size rather than the oversized box — and when two of these
+     land back to back, that same pull is what lets them overlap slightly
+     instead of sitting apart with dead space between. Rotation is applied
+     per-image in JS (processAccidents), re-rolled with the rest of the
+     text accidents. */
   .text-content img {
-    display: inline-block; vertical-align: middle; margin: 0 0.05em;
-    width: 1em; height: 1em; object-fit: cover; border-radius: 6px;
-    filter: blur(5px); clip-path: inset(0 round 6px);
+    display: inline-block; vertical-align: middle;
+    width: 1.4em; height: 1.4em; object-fit: cover;
+    margin: 0 -12px;
+    filter: blur(5px); clip-path: inset(10px round 4px);
     cursor: zoom-in; transition: filter 0.15s;
   }
   .text-content img:hover { filter: blur(2px); }
@@ -553,6 +561,11 @@
       applyDrift(block, container, 0.10);
     });
     processBoldWithinLines(container);
+    // Inline photos each get their own small random tilt, re-rolled along
+    // with everything else whenever this container is reprocessed.
+    container.querySelectorAll('img').forEach(function (img) {
+      img.style.transform = 'rotate(' + rand(-8, 8).toFixed(1) + 'deg)';
+    });
   }
 
   // Site title: every letter gets its own small vertical + horizontal
