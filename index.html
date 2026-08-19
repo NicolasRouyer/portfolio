@@ -97,22 +97,21 @@
     cursor: zoom-in;
   }
 
-  /* No backdrop of its own — the enlarged photo appears right above the
-     thumbnail that was clicked, over whatever content is already there.
+  /* No backdrop, no separate overlay layer — the enlarged photo is just
+     one image, positioned in document coordinates (not viewport-fixed)
+     directly above the thumbnail that was clicked, so it scrolls with
+     the page like everything else instead of staying pinned on screen.
      Its offset/tilt relative to that thumbnail is fixed once per page
      load (see lightboxOffsetX/Y/Rotation below), not re-rolled per click —
      only reloading the page reshuffles it. Snaps open/closed with no
      transition, no shadow. */
   .lightbox {
-    position: fixed; inset: 0; z-index: 100;
+    position: absolute; z-index: 100;
+    max-width: 60vw; max-height: 60vh; display: block;
+    border-radius: 20px;
     opacity: 0; pointer-events: none;
   }
   .lightbox.open { opacity: 1; pointer-events: auto; cursor: zoom-out; }
-  .lightbox img {
-    position: absolute;
-    max-width: 60vw; max-height: 60vh; display: block;
-    border-radius: 20px;
-  }
 
   /* Left-aligned text has zero natural slack on its left — every line
      already starts flush at the block's edge, so there's nothing to give
@@ -178,7 +177,7 @@
   </span>
 </footer>
 
-<div class="lightbox" id="lightbox"><img id="lightboxImg" src="" alt=""></div>
+<img class="lightbox" id="lightboxImg" src="" alt="">
 
 <script>
 (function () {
@@ -859,31 +858,35 @@
   var lightboxOffsetY = rand(-10, 10);
   var lightboxRotation = rand(-6, 6);
 
-  // Anchors just above whichever thumbnail was clicked, rather than
-  // anywhere on the page. Waits for the new image to actually be sized
-  // (max-width/max-height depend on its own aspect ratio) before placing
-  // it, since that determines both the centering math and the clamp below.
+  // Anchors just above whichever thumbnail was clicked, in document
+  // coordinates (position:absolute, not :fixed) so it scrolls along with
+  // the page instead of staying pinned to the viewport. Waits for the new
+  // image to actually be sized (max-width/max-height depend on its own
+  // aspect ratio) before placing it, since that determines both the
+  // centering math and the clamp below.
   function positionLightboxNearThumbnail(sourceImg) {
     function place() {
       // Rotation is applied first and measured before placing: a tilted
       // box's real (bounding) footprint is wider/taller than its own
       // untilted w/h, and using the untilted figures here would leave the
       // rotated corners eating back into the gap reserved above the
-      // thumbnail instead of clearing it.
-      lightboxImg.style.left = '0px';
-      lightboxImg.style.top = '0px';
+      // thumbnail instead of clearing it. Measuring at (scrollX, scrollY)
+      // puts it at viewport (0,0) for this reading, which is what the
+      // clamp below assumes.
+      lightboxImg.style.left = window.scrollX.toFixed(1) + 'px';
+      lightboxImg.style.top = window.scrollY.toFixed(1) + 'px';
       lightboxImg.style.transform = 'rotate(' + lightboxRotation.toFixed(2) + 'deg)';
       var box = lightboxImg.getBoundingClientRect();
 
       var srcRect = sourceImg.getBoundingClientRect();
       var left = srcRect.left + srcRect.width / 2 - box.width / 2 + lightboxOffsetX;
       var top = srcRect.top - box.height - 12 + lightboxOffsetY;
-      lightboxImg.style.left = left.toFixed(1) + 'px';
-      lightboxImg.style.top = top.toFixed(1) + 'px';
+      lightboxImg.style.left = (left + window.scrollX).toFixed(1) + 'px';
+      lightboxImg.style.top = (top + window.scrollY).toFixed(1) + 'px';
 
       // A thumbnail near the top of the viewport can leave too little
       // room above it for the full enlarged photo — nudge back fully
-      // on-screen rather than risk clipping.
+      // on-screen (in the current viewport) rather than risk clipping.
       var rect = lightboxImg.getBoundingClientRect();
       var dx = 0, dy = 0;
       if (rect.left < 0) dx = -rect.left;
@@ -901,16 +904,20 @@
 
   // Delegated rather than attached per-image: .text-content is fully
   // replaced and reprocessed on every layoutMasonry() call, which would
-  // silently drop any listener bound directly to an <img>.
-  var lightbox = document.getElementById('lightbox');
+  // silently drop any listener bound directly to an <img>. Clicking a
+  // different thumbnail while one is already open just swaps src/position
+  // in place — with no open/close animation, that reads identically to
+  // closing the first and opening the second. Clicking the enlarged photo
+  // itself (never inside .text-content) closes it, and so does clicking
+  // anything else on the page.
   var lightboxImg = document.getElementById('lightboxImg');
   document.addEventListener('click', function (e) {
     if (e.target.tagName === 'IMG' && e.target.closest('.text-content')) {
       lightboxImg.src = e.target.src;
-      lightbox.classList.add('open');
+      lightboxImg.classList.add('open');
       positionLightboxNearThumbnail(e.target);
-    } else if (lightbox.classList.contains('open')) {
-      lightbox.classList.remove('open');
+    } else if (lightboxImg.classList.contains('open')) {
+      lightboxImg.classList.remove('open');
     }
   });
 
