@@ -109,6 +109,24 @@
   }
   .composer-actions button:hover { background: #000; color: #fff; }
 
+  /* Reference-only panel — no click-to-edit here on purpose: wiring these
+     rows into editPost() would silently discard whatever draft is being
+     written the moment someone clicks a row to go re-read it. */
+  .context-panel { width: 300px; flex: none; padding: 56px 32px; border-left: 1px solid #000; }
+  .context-panel h2 {
+    font-family: Arial, Helvetica, sans-serif; font-size: 1em; font-weight: 400;
+    text-transform: uppercase; margin: 0 0 24px 0;
+  }
+  .context-section { margin-bottom: 32px; }
+  .context-section h3 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 10px 0; color: #555;
+  }
+  .context-row { padding: 10px 0; border-bottom: 1px solid #ddd; }
+  .context-row:last-child { border-bottom: none; }
+  .context-row-meta { font-size: 11px; text-transform: uppercase; margin-bottom: 3px; color: #555; }
+  .context-row-snippet { font-family: 'Times New Roman', Times, serif; font-size: 13px; line-height: 1.4; }
+  .context-panel .muted { font-size: 12px; }
+
   .post-list { margin-top: 56px; padding-top: 24px; border-top: 1px solid #000; }
   .post-row { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid #000; }
   .post-row .thumb { width: 56px; height: 56px; flex: none; object-fit: cover; border: 1px solid #000; }
@@ -130,6 +148,7 @@
     .app { flex-direction: column; }
     .sidebar { width: 100%; }
     .content { padding: 28px 20px; }
+    .context-panel { width: 100%; border-left: none; border-top: 1px solid #000; padding: 28px 20px; }
   }
 </style>
 </head>
@@ -323,6 +342,14 @@
 
   window.updateDraftField = function (field, value) {
     draft[field] = value;
+    // Surgical update, not a full render(): category/project fire on every
+    // keystroke (oninput), and a full render() would rebuild every field
+    // in the composer — including the one currently being typed into —
+    // which drops focus/cursor position mid-word.
+    if (field === 'category' || field === 'project') {
+      var panel = document.getElementById('context-panel');
+      if (panel) panel.innerHTML = renderContextPanelContent();
+    }
   };
 
   window.setDraftSize = function (size) {
@@ -770,11 +797,65 @@
     return '<div class="post-list">' + (rows || '<p class="muted">Aucun post.</p>') + '</div>';
   }
 
+  // Reference for writing continuity: while drafting a post, shows the
+  // other posts that already share its category (across every project —
+  // the category's own throughline) and the other posts that share its
+  // project (across every category — that project's own throughline), so
+  // both can be skimmed and deliberately picked up before adding more text.
+  function contextRows(matches, secondaryField) {
+    if (!matches.length) return '<p class="muted">Aucun autre post pour l\'instant.</p>';
+    return matches.map(function (p) {
+      var meta = [p.date, p[secondaryField]].filter(Boolean).join(' · ');
+      var snippet = p.type === 'image' ? (p.caption || '(image)') : stripHtml(p.content);
+      if (snippet.length > 100) snippet = snippet.slice(0, 100) + '…';
+      return '' +
+        '<div class="context-row">' +
+          '<div class="context-row-meta">' + escapeHtml(meta) + '</div>' +
+          '<div class="context-row-snippet">' + escapeHtml(snippet) + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function chronological(list) {
+    return list.slice().sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    });
+  }
+
+  function renderContextPanelContent() {
+    var cat = (draft.category || '').trim();
+    var proj = (draft.project || '').trim();
+
+    var catMatches = cat ? chronological(posts.filter(function (p) {
+      return p.id !== editingPostId && p.category === cat;
+    })) : null;
+    var projMatches = proj ? chronological(posts.filter(function (p) {
+      return p.id !== editingPostId && p.project === proj;
+    })) : null;
+
+    return '' +
+      '<h2>Continuité</h2>' +
+      '<div class="context-section">' +
+        '<h3>Même catégorie' + (cat ? ' — ' + escapeHtml(cat) : '') + '</h3>' +
+        (catMatches ? contextRows(catMatches, 'project') : '<p class="muted">Renseignez une catégorie pour voir les autres posts.</p>') +
+      '</div>' +
+      '<div class="context-section">' +
+        '<h3>Même projet' + (proj ? ' — ' + escapeHtml(proj) : '') + '</h3>' +
+        (projMatches ? contextRows(projMatches, 'category') : '<p class="muted">Renseignez un projet pour voir les autres posts.</p>') +
+      '</div>';
+  }
+
+  function renderContextPanel() {
+    return '<div class="context-panel" id="context-panel">' + renderContextPanelContent() + '</div>';
+  }
+
   function render() {
     document.title = 'Backoffice — ' + siteTitle;
     document.getElementById('app').innerHTML =
       renderSidebar() +
-      '<div class="content"><div class="content-inner">' + renderComposer() + renderPostList() + '</div></div>';
+      '<div class="content"><div class="content-inner">' + renderComposer() + renderPostList() + '</div></div>' +
+      renderContextPanel();
   }
 
   function showGate(message) {
