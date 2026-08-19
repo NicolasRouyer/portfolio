@@ -97,19 +97,21 @@
     cursor: zoom-in;
   }
 
-  /* No backdrop of its own — the enlarged photo just lands somewhere on
-     the page, over whatever content is already there. Position/rotation
-     are set in JS (positionLightboxRandomly) each time it opens, the same
-     random-placement spirit as the rest of the site. */
+  /* No backdrop of its own — the enlarged photo appears right above the
+     thumbnail that was clicked, over whatever content is already there.
+     Its offset/tilt relative to that thumbnail is fixed once per page
+     load (see lightboxOffsetX/Y/Rotation below), not re-rolled per click —
+     only reloading the page reshuffles it. Snaps open/closed with no
+     transition, no shadow. */
   .lightbox {
     position: fixed; inset: 0; z-index: 100;
-    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    opacity: 0; pointer-events: none;
   }
   .lightbox.open { opacity: 1; pointer-events: auto; cursor: zoom-out; }
   .lightbox img {
     position: absolute;
-    max-width: 40vw; max-height: 40vh; display: block;
-    border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    max-width: 60vw; max-height: 60vh; display: block;
+    border-radius: 20px;
   }
 
   /* Left-aligned text has zero natural slack on its left — every line
@@ -563,10 +565,15 @@
       applyDrift(block, container, 0.10);
     });
     processBoldWithinLines(container);
-    // Inline photos each get their own small random tilt, re-rolled along
-    // with everything else whenever this container is reprocessed.
+    // Inline photos each get their own small random tilt and vertical/
+    // horizontal jitter, re-rolled along with everything else whenever
+    // this container is reprocessed. transform is paint-only — it never
+    // touches the box the line-height accounts for — so this scatter
+    // can't disturb the surrounding text's leading; it can, incidentally,
+    // let two nearby photos drift into a slight accidental overlap.
     container.querySelectorAll('img').forEach(function (img) {
-      img.style.transform = 'rotate(' + rand(-8, 8).toFixed(1) + 'deg)';
+      var dx = rand(-8, 8), dy = rand(-8, 8), rot = rand(-8, 8);
+      img.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg)';
     });
   }
 
@@ -844,22 +851,39 @@
     }, 150);
   });
 
-  // Re-rolled every time the lightbox opens. Waits for the new image to
-  // actually be sized (max-width/max-height depend on its own aspect
-  // ratio) before computing how far it can land without spilling off
-  // whichever edge of the viewport it's closest to.
-  function positionLightboxRandomly() {
-    function place() {
-      var w = lightboxImg.offsetWidth, h = lightboxImg.offsetHeight;
-      var maxLeft = Math.max(0, window.innerWidth - w);
-      var maxTop = Math.max(0, window.innerHeight - h);
-      lightboxImg.style.left = rand(0, maxLeft).toFixed(1) + 'px';
-      lightboxImg.style.top = rand(0, maxTop).toFixed(1) + 'px';
-      lightboxImg.style.transform = 'rotate(' + rand(-8, 8).toFixed(2) + 'deg)';
+  // The lightbox's offset/tilt relative to whichever thumbnail it's
+  // anchored to is rolled once here, when the script first runs, and
+  // reused for every click after that — a page reload is what reshuffles
+  // it, not the click itself.
+  var lightboxOffsetX = rand(-16, 16);
+  var lightboxOffsetY = rand(-10, 10);
+  var lightboxRotation = rand(-6, 6);
 
-      // The rotation swells the box's actual footprint beyond w/h, which
-      // can push a placement landed near an edge into spilling past it —
-      // nudge it back fully on-screen rather than risk clipping the photo.
+  // Anchors just above whichever thumbnail was clicked, rather than
+  // anywhere on the page. Waits for the new image to actually be sized
+  // (max-width/max-height depend on its own aspect ratio) before placing
+  // it, since that determines both the centering math and the clamp below.
+  function positionLightboxNearThumbnail(sourceImg) {
+    function place() {
+      // Rotation is applied first and measured before placing: a tilted
+      // box's real (bounding) footprint is wider/taller than its own
+      // untilted w/h, and using the untilted figures here would leave the
+      // rotated corners eating back into the gap reserved above the
+      // thumbnail instead of clearing it.
+      lightboxImg.style.left = '0px';
+      lightboxImg.style.top = '0px';
+      lightboxImg.style.transform = 'rotate(' + lightboxRotation.toFixed(2) + 'deg)';
+      var box = lightboxImg.getBoundingClientRect();
+
+      var srcRect = sourceImg.getBoundingClientRect();
+      var left = srcRect.left + srcRect.width / 2 - box.width / 2 + lightboxOffsetX;
+      var top = srcRect.top - box.height - 12 + lightboxOffsetY;
+      lightboxImg.style.left = left.toFixed(1) + 'px';
+      lightboxImg.style.top = top.toFixed(1) + 'px';
+
+      // A thumbnail near the top of the viewport can leave too little
+      // room above it for the full enlarged photo — nudge back fully
+      // on-screen rather than risk clipping.
       var rect = lightboxImg.getBoundingClientRect();
       var dx = 0, dy = 0;
       if (rect.left < 0) dx = -rect.left;
@@ -884,7 +908,7 @@
     if (e.target.tagName === 'IMG' && e.target.closest('.text-content')) {
       lightboxImg.src = e.target.src;
       lightbox.classList.add('open');
-      positionLightboxRandomly();
+      positionLightboxNearThumbnail(e.target);
     } else if (lightbox.classList.contains('open')) {
       lightbox.classList.remove('open');
     }
