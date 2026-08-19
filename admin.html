@@ -121,11 +121,18 @@
   .context-section h3 {
     font-size: 11px; text-transform: uppercase; letter-spacing: 0.02em; margin: 0 0 10px 0; color: #555;
   }
-  .context-row { padding: 10px 0; border-bottom: 1px solid #ddd; }
-  .context-row:last-child { border-bottom: none; }
+  .context-row { padding: 10px 0; }
   .context-row-meta { font-size: 11px; text-transform: uppercase; margin-bottom: 3px; color: #555; }
   .context-row-snippet { font-family: 'Times New Roman', Times, serif; font-size: 13px; line-height: 1.4; }
   .context-panel .muted { font-size: 12px; }
+  /* The draft's own slot in the sequence — between the tail of whichever
+     post precedes it and the head of whichever post follows. */
+  .context-draft-marker {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    text-align: center; color: #555; padding: 8px 0; margin: 4px 0;
+    border-top: 1px dashed #000; border-bottom: 1px dashed #000;
+  }
+  .context-edge { font-style: italic; text-align: center; padding: 8px 0; }
 
   .post-list { margin-top: 56px; padding-top: 24px; border-top: 1px solid #000; }
   .post-row { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid #000; }
@@ -342,11 +349,13 @@
 
   window.updateDraftField = function (field, value) {
     draft[field] = value;
-    // Surgical update, not a full render(): category/project fire on every
+    // Surgical update, not a full render(): these fields fire on every
     // keystroke (oninput), and a full render() would rebuild every field
     // in the composer — including the one currently being typed into —
-    // which drops focus/cursor position mid-word.
-    if (field === 'category' || field === 'project') {
+    // which drops focus/cursor position mid-word. date matters here too,
+    // not just category/project: it's what decides where the draft slots
+    // in between the surrounding posts.
+    if (field === 'category' || field === 'project' || field === 'date') {
       var panel = document.getElementById('context-panel');
       if (panel) panel.innerHTML = renderContextPanelContent();
     }
@@ -797,23 +806,47 @@
     return '<div class="post-list">' + (rows || '<p class="muted">Aucun post.</p>') + '</div>';
   }
 
-  // Reference for writing continuity: while drafting a post, shows the
-  // other posts that already share its category (across every project —
-  // the category's own throughline) and the other posts that share its
-  // project (across every category — that project's own throughline), so
-  // both can be skimmed and deliberately picked up before adding more text.
-  function contextRows(matches, secondaryField) {
-    if (!matches.length) return '<p class="muted">Aucun autre post pour l\'instant.</p>';
-    return matches.map(function (p) {
+  // Reference for writing continuity: rather than the whole thread, shows
+  // exactly where the draft slots in — the tail end of whichever post
+  // immediately precedes it and the opening of whichever post immediately
+  // follows it (by date), with the draft itself marked between them. That's
+  // the actual join a new post has to work with: how the previous one left
+  // off, and how the next one already picks up.
+  function excerptTail(p) {
+    var text = p.type === 'image' ? (p.caption || '(image)') : stripHtml(p.content);
+    return text.length > 140 ? '…' + text.slice(-140) : text;
+  }
+  function excerptHead(p) {
+    var text = p.type === 'image' ? (p.caption || '(image)') : stripHtml(p.content);
+    return text.length > 140 ? text.slice(0, 140) + '…' : text;
+  }
+
+  function renderNeighborSlot(matches, secondaryField, emptyMsg) {
+    if (!matches.length) return '<p class="muted">' + emptyMsg + '</p>';
+
+    // matches is already sorted chronologically; find where the draft's
+    // own date would land among them. Ties go to the draft coming after
+    // (a same-day post reads as continuing, not preceding).
+    var draftDate = draft.date || todayStr();
+    var prev = null, next = null;
+    for (var i = 0; i < matches.length; i++) {
+      if (matches[i].date <= draftDate) prev = matches[i];
+      else { next = matches[i]; break; }
+    }
+
+    function row(p, excerpt, cls) {
       var meta = [p.date, p[secondaryField]].filter(Boolean).join(' · ');
-      var snippet = p.type === 'image' ? (p.caption || '(image)') : stripHtml(p.content);
-      if (snippet.length > 100) snippet = snippet.slice(0, 100) + '…';
       return '' +
-        '<div class="context-row">' +
+        '<div class="context-row ' + cls + '">' +
           '<div class="context-row-meta">' + escapeHtml(meta) + '</div>' +
-          '<div class="context-row-snippet">' + escapeHtml(snippet) + '</div>' +
+          '<div class="context-row-snippet">' + escapeHtml(excerpt) + '</div>' +
         '</div>';
-    }).join('');
+    }
+
+    return '' +
+      (prev ? row(prev, excerptTail(prev), 'context-prev') : '<p class="muted context-edge">— début du fil —</p>') +
+      '<div class="context-draft-marker">✎ votre brouillon</div>' +
+      (next ? row(next, excerptHead(next), 'context-next') : '<p class="muted context-edge">— fil pas encore continué —</p>');
   }
 
   function chronological(list) {
@@ -838,11 +871,11 @@
       '<h2>Continuité</h2>' +
       '<div class="context-section">' +
         '<h3>Même catégorie' + (cat ? ' — ' + escapeHtml(cat) : '') + '</h3>' +
-        (catMatches ? contextRows(catMatches, 'project') : '<p class="muted">Renseignez une catégorie pour voir les autres posts.</p>') +
+        (catMatches ? renderNeighborSlot(catMatches, 'project', 'Aucun autre post dans cette catégorie pour l\'instant.') : '<p class="muted">Renseignez une catégorie pour voir le fil.</p>') +
       '</div>' +
       '<div class="context-section">' +
         '<h3>Même projet' + (proj ? ' — ' + escapeHtml(proj) : '') + '</h3>' +
-        (projMatches ? contextRows(projMatches, 'category') : '<p class="muted">Renseignez un projet pour voir les autres posts.</p>') +
+        (projMatches ? renderNeighborSlot(projMatches, 'category', 'Aucun autre post dans ce projet pour l\'instant.') : '<p class="muted">Renseignez un projet pour voir le fil.</p>') +
       '</div>';
   }
 
