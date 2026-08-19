@@ -94,20 +94,22 @@
     width: 1.4em; height: 1.4em; object-fit: cover;
     margin: 0 -12px;
     filter: blur(5px); clip-path: inset(10px round 4px);
-    cursor: zoom-in; transition: filter 0.15s;
+    cursor: zoom-in;
   }
-  .text-content img:hover { filter: blur(2px); }
 
+  /* No backdrop of its own — the enlarged photo just lands somewhere on
+     the page, over whatever content is already there. Position/rotation
+     are set in JS (positionLightboxRandomly) each time it opens, the same
+     random-placement spirit as the rest of the site. */
   .lightbox {
-    position: fixed; inset: 0; z-index: 100; padding: 5vh 5vw;
-    background: rgba(255, 255, 255, 0.94);
-    display: flex; align-items: center; justify-content: center;
+    position: fixed; inset: 0; z-index: 100;
     opacity: 0; pointer-events: none; transition: opacity 0.2s;
   }
   .lightbox.open { opacity: 1; pointer-events: auto; cursor: zoom-out; }
   .lightbox img {
-    max-width: 100%; max-height: 100%; display: block;
-    border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    position: absolute;
+    max-width: 40vw; max-height: 40vh; display: block;
+    border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   }
 
   /* Left-aligned text has zero natural slack on its left — every line
@@ -842,6 +844,37 @@
     }, 150);
   });
 
+  // Re-rolled every time the lightbox opens. Waits for the new image to
+  // actually be sized (max-width/max-height depend on its own aspect
+  // ratio) before computing how far it can land without spilling off
+  // whichever edge of the viewport it's closest to.
+  function positionLightboxRandomly() {
+    function place() {
+      var w = lightboxImg.offsetWidth, h = lightboxImg.offsetHeight;
+      var maxLeft = Math.max(0, window.innerWidth - w);
+      var maxTop = Math.max(0, window.innerHeight - h);
+      lightboxImg.style.left = rand(0, maxLeft).toFixed(1) + 'px';
+      lightboxImg.style.top = rand(0, maxTop).toFixed(1) + 'px';
+      lightboxImg.style.transform = 'rotate(' + rand(-8, 8).toFixed(2) + 'deg)';
+
+      // The rotation swells the box's actual footprint beyond w/h, which
+      // can push a placement landed near an edge into spilling past it —
+      // nudge it back fully on-screen rather than risk clipping the photo.
+      var rect = lightboxImg.getBoundingClientRect();
+      var dx = 0, dy = 0;
+      if (rect.left < 0) dx = -rect.left;
+      else if (rect.right > window.innerWidth) dx = window.innerWidth - rect.right;
+      if (rect.top < 0) dy = -rect.top;
+      else if (rect.bottom > window.innerHeight) dy = window.innerHeight - rect.bottom;
+      if (dx || dy) {
+        lightboxImg.style.left = (parseFloat(lightboxImg.style.left) + dx).toFixed(1) + 'px';
+        lightboxImg.style.top = (parseFloat(lightboxImg.style.top) + dy).toFixed(1) + 'px';
+      }
+    }
+    if (lightboxImg.complete && lightboxImg.naturalWidth) place();
+    else lightboxImg.onload = place;
+  }
+
   // Delegated rather than attached per-image: .text-content is fully
   // replaced and reprocessed on every layoutMasonry() call, which would
   // silently drop any listener bound directly to an <img>.
@@ -851,6 +884,7 @@
     if (e.target.tagName === 'IMG' && e.target.closest('.text-content')) {
       lightboxImg.src = e.target.src;
       lightbox.classList.add('open');
+      positionLightboxRandomly();
     } else if (lightbox.classList.contains('open')) {
       lightbox.classList.remove('open');
     }
