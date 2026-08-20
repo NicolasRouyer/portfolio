@@ -81,7 +81,7 @@
       "date": "2026-08-19",
       "category": "Développement",
       "project": "ERP muséal",
-      "content": "<p>Le premier module est développé avec l'assistante de direction, les agents d'accueil et les guides externes afin de comprendre exactement les besoins. Le développement se fait par brique, <b>mois après mois</b>. Chaque module est développé entre 20 et 60 jours selon la complexité.&nbsp;</p>",
+      "content": "<p>L'assistante de direction réceptionne des demandes de visite guidée par email. Elle passe son temps à expliquer le fonctionnement puis au téléphone pour trouver la bonne personne pour guider un groupe au sein du musée. Elle doit parler la bonne langue, être disponible à la bonne date et prête à guider cette typologie de groupe. Tout ça x600 visites sur l'année et une quarantaine de guides. C'est parfois des échanges pendant plusieurs semaines pour organiser une visite guidée. Elle jongle entre le téléphone, un tableau Excel et des emails. On commence par ouvrir un système de réservation via Billetweb puis on développe un module sur mesure. Les guides s'inscrivent, entre leurs dispos, les langues parlées, etc. Les réservations arrivent directement ici. L'assistance de direction peut proposer les visites directement aux bonnes personnes. Un coéfficient d'équité se recalcule pour permettre d'attribuer équitablement les visites à notre équipe de guide.</p>",
       "src": null,
       "caption": "",
       "size": "large",
