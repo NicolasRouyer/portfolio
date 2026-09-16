@@ -406,10 +406,18 @@
     exec('createLink', url);
   };
 
-  // Inline image: small, blurred, clickable — embedded right in the text
-  // rather than as its own post. Opening the native file picker steals
-  // focus from the editor, so the cursor position is captured before that
-  // and restored right before inserting, once the async upload resolves.
+  // Inline image: a small marker embedded right in the text rather than
+  // as its own post — the public site turns it into a dot with a click
+  // zone bigger than the dot itself. That needs an extra wrapper (the
+  // site's sanitizer strips <span> on the public side, but leaves other
+  // tags alone) since a bigger click target than what's actually drawn
+  // isn't achievable on the <img> alone — border-radius and clip-path
+  // both restrict hit-testing to the visible shape, not just the
+  // painting. <data> was picked simply because it carries no default
+  // styling to override, not for its semantic meaning. Opening the
+  // native file picker steals focus from the editor, so the cursor
+  // position is captured before that and restored right before
+  // inserting, once the async upload resolves.
   window.cmdInsertImage = function () {
     var el = getEditorEl();
     if (!el) return;
@@ -428,7 +436,7 @@
         var restored = sel;
         restored.removeAllRanges();
         if (savedRange) restored.addRange(savedRange);
-        document.execCommand('insertHTML', false, '<img src="' + path + '">');
+        document.execCommand('insertHTML', false, '<data><img src="' + path + '"></data>');
         window.onDraftContentChanged(el);
       }).catch(function (err) {
         showUploadStatus('');

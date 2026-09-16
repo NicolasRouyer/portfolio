@@ -76,19 +76,47 @@
     mix-blend-mode: overlay; background: #808080; filter: url(#grainFilter);
   }
 
-  /* Inline photos: a small glyph sitting mid-sentence rather than a full
-     card — click it to see the real thing. Placeholder for now: rendered
-     as a plain dot (brightness(0) turns whatever's loaded into a flat
-     black disc, sidestepping the previous blur/clip-path treatment, whose
-     fixed-pixel clip inset broke at small body text sizes). Rotation/
-     jitter is still applied per-image in JS (processAccidents), re-rolled
-     with the rest of the text accidents. */
+  /* Photo markers now live in the margin instead of mid-sentence, so they
+     never interrupt reading — floated out of the paragraph, with a
+     negative margin (percentage, so it scales down on narrow viewports
+     instead of overflowing off-screen) pulling them past the text column
+     into the padding gutter already reserved for line drift. Left/right
+     side, tilt and jitter are all randomised per-marker in JS
+     (processAccidents), re-rolled with the rest of the text accidents —
+     CSS here only sets the float:right/margin defaults those overrides
+     replace.
+
+     The clickable box (<data>, inserted by the admin around the <img> —
+     see admin.html's cmdInsertImage) is deliberately bigger than the dot
+     painted inside it. This needs the extra wrapper because border-radius
+     and clip-path both restrict hit-testing to the shape actually drawn,
+     not just the painting — confirmed empirically, a plain <img> can't
+     have a click target bigger than what's visibly rounded off. The dot
+     itself keeps the placeholder treatment from before (brightness(0)
+     turns whatever photo is loaded into a flat black disc regardless of
+     its content), just now small and centered inside a bigger invisible
+     hit area rather than being the whole clickable shape itself.
+
+     Posts written before this wrapper existed still have bare <img>
+     markers with no <data> around them — the base .text-content img rule
+     below keeps those working exactly as before (the image itself is the
+     whole clickable dot), and is then overridden by the more specific
+     .text-content data img rule for anything that does have the wrapper. */
   .text-content img {
-    display: inline-block; vertical-align: middle;
-    width: 0.35em; height: 0.35em; object-fit: cover;
-    margin: 0 0.05em;
+    display: block; width: 0.44em; height: 0.44em; object-fit: cover;
     border-radius: 50%; filter: brightness(0);
+    float: right; margin: 0.2em -8% 0.3em 0.6em;
     cursor: zoom-in;
+  }
+  .text-content data {
+    display: flex; align-items: center; justify-content: center;
+    float: right; margin: 0.2em -8% 0.3em 0.6em;
+    width: 1.6em; height: 1.6em;
+    cursor: zoom-in;
+  }
+  .text-content data img {
+    float: none; margin: 0; cursor: default;
+    pointer-events: none;
   }
 
   /* No backdrop, no separate overlay layer — the enlarged photo is just
@@ -558,15 +586,29 @@
       applyDrift(block, container, 0.10);
     });
     processBoldWithinLines(container);
-    // Inline photos each get their own small random tilt and vertical/
+    // Each photo marker gets its own small random tilt and vertical/
     // horizontal jitter, re-rolled along with everything else whenever
     // this container is reprocessed. transform is paint-only — it never
     // touches the box the line-height accounts for — so this scatter
     // can't disturb the surrounding text's leading; it can, incidentally,
-    // let two nearby photos drift into a slight accidental overlap.
-    container.querySelectorAll('img').forEach(function (img) {
+    // let two nearby markers drift into a slight accidental overlap. The
+    // marker is the <data> wrapper where one exists, or the bare <img>
+    // itself for posts written before that wrapper existed.
+    var markers = Array.prototype.slice.call(container.querySelectorAll('data'))
+      .concat(Array.prototype.slice.call(container.querySelectorAll('img')).filter(function (img) {
+        return !img.closest('data');
+      }));
+    markers.forEach(function (marker) {
       var dx = rand(-8, 8), dy = rand(-8, 8), rot = rand(-8, 8);
-      img.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg)';
+      marker.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px) rotate(' + rot.toFixed(1) + 'deg)';
+      // Which margin gets the outward, pull-into-the-gutter negative value
+      // depends on which side it floats to — the CSS default only covers
+      // float:right, so float:left needs its negative margin flipped to
+      // the left side instead.
+      var side = Math.random() < 0.5 ? 'left' : 'right';
+      marker.style.float = side;
+      marker.style.marginLeft = side === 'left' ? '-8%' : '0.6em';
+      marker.style.marginRight = side === 'left' ? '0.6em' : '-8%';
     });
   }
 
@@ -896,20 +938,28 @@
     else lightboxImg.onload = place;
   }
 
-  // Delegated rather than attached per-image: .text-content is fully
+  // Delegated rather than attached per-marker: .text-content is fully
   // replaced and reprocessed on every layoutMasonry() call, which would
-  // silently drop any listener bound directly to an <img>. Clicking a
-  // different thumbnail while one is already open just swaps src/position
-  // in place — with no open/close animation, that reads identically to
+  // silently drop any listener bound directly to one. The inner <img> of
+  // a <data>-wrapped marker has pointer-events:none (see CSS), so a click
+  // anywhere in that marker's (bigger-than-the-dot) box always lands on
+  // the <data> wrapper itself; a bare <img> (posts written before that
+  // wrapper existed) is still checked directly as a fallback. Clicking a
+  // different marker while one is already open just swaps src/position in
+  // place — with no open/close animation, that reads identically to
   // closing the first and opening the second. Clicking the enlarged photo
   // itself (never inside .text-content) closes it, and so does clicking
   // anything else on the page.
   var lightboxImg = document.getElementById('lightboxImg');
   document.addEventListener('click', function (e) {
-    if (e.target.tagName === 'IMG' && e.target.closest('.text-content')) {
-      lightboxImg.src = e.target.src;
+    var marker = e.target.closest('.text-content data');
+    var srcImg = marker ? marker.querySelector('img')
+      : (e.target.tagName === 'IMG' && e.target.closest('.text-content')) ? e.target
+      : null;
+    if (srcImg) {
+      lightboxImg.src = srcImg.src;
       lightboxImg.classList.add('open');
-      positionLightboxNearThumbnail(e.target);
+      positionLightboxNearThumbnail(marker || srcImg);
     } else if (lightboxImg.classList.contains('open')) {
       lightboxImg.classList.remove('open');
     }
