@@ -7,7 +7,7 @@
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 24px; line-height: 1.3; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; line-height: 1.3; }
   a { color: inherit; font-family: 'Times New Roman', Times, serif; font-style: italic; text-decoration: underline; }
 
   .site-header {
@@ -76,24 +76,18 @@
     mix-blend-mode: overlay; background: #808080; filter: url(#grainFilter);
   }
 
-  /* Inline photos: a small, deliberately soft glyph sitting mid-sentence
-     rather than a full card — click it to see the real thing. Blurring an
-     image right up to its own edge fades that edge toward transparency —
-     over the white page that reads as a pale halo, not a full vignette.
-     Fixed by rendering the image oversized and clipping well inside that
-     oversized box: the fade-to-transparent zone lands outside the visible
-     area, so only fully-opaque blurred pixels ever show. The negative
-     margin then pulls the surrounding flow back in to match the visible
-     (clipped) size rather than the oversized box — and when two of these
-     land back to back, that same pull is what lets them overlap slightly
-     instead of sitting apart with dead space between. Rotation is applied
-     per-image in JS (processAccidents), re-rolled with the rest of the
-     text accidents. */
+  /* Inline photos: a small glyph sitting mid-sentence rather than a full
+     card — click it to see the real thing. Placeholder for now: rendered
+     as a plain dot (brightness(0) turns whatever's loaded into a flat
+     black disc, sidestepping the previous blur/clip-path treatment, whose
+     fixed-pixel clip inset broke at small body text sizes). Rotation/
+     jitter is still applied per-image in JS (processAccidents), re-rolled
+     with the rest of the text accidents. */
   .text-content img {
     display: inline-block; vertical-align: middle;
-    width: 1.4em; height: 1.4em; object-fit: cover;
-    margin: 0 -12px;
-    filter: blur(5px); clip-path: inset(10px round 4px);
+    width: 0.35em; height: 0.35em; object-fit: cover;
+    margin: 0 0.05em;
+    border-radius: 50%; filter: brightness(0);
     cursor: zoom-in;
   }
 
